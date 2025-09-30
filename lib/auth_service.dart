@@ -22,7 +22,6 @@ class AuthService {
       url,
       body: {"nome": nome, "email": email, "senha": senha},
     );
-
     return jsonDecode(response.body);
   }
 }

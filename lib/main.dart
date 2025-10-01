@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:zeroone/pages/pagina_inicial.dart';
 import 'auth_service.dart';
 
 void main() {
@@ -45,18 +46,18 @@ class _LoginPageState extends State<LoginPage> {
   bool get isLogin => isSelected[0];
 
   // Controladores dos campos
-  final TextEditingController _nomeController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _senhaController = TextEditingController();
+  final TextEditingController nomeController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController senhaController = TextEditingController();
 
   bool _carregando = false;
 
   void _autenticar() async {
     if (!isLogin) {
       // Cadastro
-      if (_nomeController.text.isEmpty ||
-          _emailController.text.isEmpty ||
-          _senhaController.text.isEmpty) {
+      if (nomeController.text.isEmpty ||
+          emailController.text.isEmpty ||
+          senhaController.text.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Preencha todos os campos")),
         );
@@ -64,7 +65,7 @@ class _LoginPageState extends State<LoginPage> {
       }
     } else {
       // Login
-      if (_emailController.text.isEmpty || _senhaController.text.isEmpty) {
+      if (emailController.text.isEmpty || senhaController.text.isEmpty) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text("Preencha email e senha")));
@@ -78,15 +79,31 @@ class _LoginPageState extends State<LoginPage> {
 
       if (isLogin) {
         resposta = await AuthService.login(
-          _emailController.text,
-          _senhaController.text,
+          emailController.text,
+          senhaController.text,
         );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(resposta["message"])));
+
+        if (resposta["success"]) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  HomePage(nomeUsuario: resposta["usuario"]["nome"]),
+            ),
+          );
+        }
       } else {
         resposta = await AuthService.cadastrar(
-          _nomeController.text,
-          _emailController.text,
-          _senhaController.text,
+          nomeController.text,
+          emailController.text,
+          senhaController.text,
         );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(resposta["message"])));
       }
 
       ScaffoldMessenger.of(
@@ -146,7 +163,7 @@ class _LoginPageState extends State<LoginPage> {
                 Column(
                   children: [
                     TextField(
-                      controller: _nomeController,
+                      controller: nomeController,
                       decoration: const InputDecoration(
                         labelText: "Nome",
                         prefixIcon: Icon(Icons.person, color: Colors.black),
@@ -158,7 +175,7 @@ class _LoginPageState extends State<LoginPage> {
 
               // 🔹 Campo Email
               TextField(
-                controller: _emailController,
+                controller: emailController,
                 decoration: const InputDecoration(
                   labelText: "E-mail",
                   prefixIcon: Icon(Icons.email, color: Colors.black),
@@ -168,7 +185,7 @@ class _LoginPageState extends State<LoginPage> {
 
               // 🔹 Campo Senha
               TextField(
-                controller: _senhaController,
+                controller: senhaController,
                 obscureText: true,
                 decoration: const InputDecoration(
                   labelText: "Senha",

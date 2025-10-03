@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Login/Cadastro',
+      title: 'ZeroOne',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         inputDecorationTheme: InputDecorationTheme(
@@ -90,8 +90,10 @@ class _LoginPageState extends State<LoginPage> {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) =>
-                  HomePage(nomeUsuario: resposta["usuario"]["nome"]),
+              builder: (context) => HomePage(
+                nomeUsuario: resposta["usuario"]["nome"],
+                emailUsuario: resposta["usuario"]["email"],
+              ),
             ),
           );
         }

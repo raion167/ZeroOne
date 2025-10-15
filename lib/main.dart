@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zeroone/pages/pagina_inicial.dart';
 import 'auth_service.dart';
+import 'dart:html' as html;
 
 void main() {
   runApp(const MyApp());

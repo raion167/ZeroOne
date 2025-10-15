@@ -3,6 +3,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:zeroone/pages/financeiro_page.dart';
+import 'monitoramento_clientes_page.dart';
+import 'menu_lateral.dart';
 
 class HomePage extends StatefulWidget {
   final String nomeUsuario;
@@ -22,6 +26,14 @@ class _HomePageState extends State<HomePage> {
   String _status = "Verificando localização...";
   Position? _posicao;
 
+  // Dados simulados estilo "bolsa de valores"
+  List<Map<String, dynamic>> painelSolar = [
+    {"nome": "Consumo Atual", "valor": 350, "unidade": "kWh", "mudanca": 2.5},
+    {"nome": "Geração Atual", "valor": 420, "unidade": "kWh", "mudanca": -1.2},
+    {"nome": "Economia Mensal", "valor": 180, "unidade": "R\$", "mudanca": 3.1},
+    {"nome": "Sistema", "valor": "Online", "unidade": "", "mudanca": 0},
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -29,124 +41,68 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _verificarLocalizacao() async {
-    bool servicoAtivo;
-    LocationPermission permissao;
-
-    // Verifica se GPS está ativo
-    servicoAtivo = await Geolocator.isLocationServiceEnabled();
-    if (!servicoAtivo) {
-      setState(() => _status = "Ative o GPS para continuar");
-      return;
-    }
-
-    // Verifica permissões
-    permissao = await Geolocator.checkPermission();
-    if (permissao == LocationPermission.denied) {
-      permissao = await Geolocator.requestPermission();
-      if (permissao == LocationPermission.denied) {
-        setState(() => _status = "Permissão de localização negada");
+    try {
+      bool servicoAtivo = await Geolocator.isLocationServiceEnabled();
+      if (!servicoAtivo) {
+        setState(() => _status = "Ative o GPS para continuar");
         return;
       }
-    }
 
-    if (permissao == LocationPermission.deniedForever) {
-      setState(
-        () => _status = "Permissão de localização permanentemente negada",
-      );
-      return;
-    }
-
-    // Obtém posição atual
-    Position posicao = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-
-    _posicao = posicao;
-
-    // Converte para endereço
-    List<Placemark> placemarks = await placemarkFromCoordinates(
-      posicao.latitude,
-      posicao.longitude,
-    );
-
-    if (placemarks.isNotEmpty) {
-      String estado = placemarks.first.administrativeArea ?? "";
-
-      if (estado.toLowerCase().contains("pará") ||
-          estado.toLowerCase().contains("para")) {
-        setState(() => _status = "✅ Você está no Pará!");
-      } else {
-        setState(
-          () => _status =
-              "❌ Acesso permitido apenas no Pará.\nLocal detectado: $estado",
-        );
+      LocationPermission permissao = await Geolocator.checkPermission();
+      if (permissao == LocationPermission.denied) {
+        permissao = await Geolocator.requestPermission();
+        if (permissao == LocationPermission.denied) {
+          setState(() => _status = "Permissão de localização negada");
+          return;
+        }
       }
-    } else {
-      setState(() => _status = "Não foi possível determinar a localização.");
+
+      if (permissao == LocationPermission.deniedForever) {
+        setState(
+          () => _status = "Permissão de localização permanentemente negada",
+        );
+        return;
+      }
+
+      Position posicao = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      _posicao = posicao;
+
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        posicao.latitude,
+        posicao.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        String estado = placemarks.first.administrativeArea ?? "";
+        setState(() {
+          if (estado.toLowerCase().contains("pará") ||
+              estado.toLowerCase().contains("para")) {
+            _status = "✅ Você está no Pará!";
+          } else {
+            _status =
+                "❌ Acesso permitido apenas no Pará.\nLocal detectado: $estado";
+          }
+        });
+      } else {
+        setState(() => _status = "Não foi possível determinar o endereço.");
+      }
+    } catch (e) {
+      setState(() => _status = "Erro ao obter localização: $e");
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Bem-vindo, ${widget.nomeUsuario}")),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(color: Colors.black),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CircleAvatar(
-                    radius: 35,
-                    backgroundColor: Colors.grey[300],
-                    backgroundImage: const NetworkImage(
-                      "https://via.placeholder.com/150",
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    widget.nomeUsuario,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.emailUsuario,
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text("Início"),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text("Perfil"),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text("Sair"),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushReplacementNamed(context, '/');
-              },
-            ),
-          ],
-        ),
-      ),
-      body: _posicao == null
+    final alturaTela = MediaQuery.of(context).size.height;
+
+    return BaseScaffold(
+      titulo: "Bem-vindo, ${widget.nomeUsuario}",
+      nomeUsuario: widget.nomeUsuario,
+      emailUsuario: widget.emailUsuario,
+      corpo: _posicao == null
           ? Center(
               child: Text(
                 _status,
@@ -192,13 +148,95 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 Container(
+                  color: Colors.black,
                   padding: const EdgeInsets.all(12),
-                  color: Colors.black87,
-                  width: double.infinity,
-                  child: Text(
-                    _status,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    textAlign: TextAlign.center,
+                  height: alturaTela * 0.3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Monitoramento Solar",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: painelSolar.length,
+                          itemBuilder: (context, index) {
+                            final item = painelSolar[index];
+
+                            if (item["nome"] == "Sistema") {
+                              final bool online = item["valor"] == "Online";
+                              return Container(
+                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                child: ElevatedButton(
+                                  onPressed: () {},
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: online
+                                        ? Colors.green
+                                        : Colors.red,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    online ? "ONLINE" : "OFFLINE",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+
+                            final bool positivo = item["mudanca"] >= 0;
+                            final cor = positivo ? Colors.green : Colors.red;
+                            final String sinal = positivo ? "+" : "";
+                            return Card(
+                              color: Colors.grey[900],
+                              elevation: 2,
+                              child: ListTile(
+                                title: Text(
+                                  item["nome"],
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                trailing: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      "${item["valor"]} ${item["unidade"]}",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    if (item["mudanca"] != 0)
+                                      Text(
+                                        "$sinal${item["mudanca"]}%",
+                                        style: TextStyle(
+                                          color: cor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

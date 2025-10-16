@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:zeroone/estoque_visao_geral.dart';
+import 'package:zeroone/pages/lista_movimentacoes_page.dart';
 import 'menu_lateral.dart';
 import 'estoque_lista_page.dart';
 import 'estoque_adicionar_page.dart';
@@ -31,8 +33,15 @@ class EstoqueMovimentacoesPage extends StatelessWidget {
               label: "Visão Geral",
               color: Colors.blue,
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Visão Geral clicada!")),
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EstoqueVisaoGeralPage(
+                      nomeUsuario: nomeUsuario,
+                      emailUsuario: emailUsuario,
+                    ),
+                  ),
                 );
               },
             ),
@@ -44,9 +53,9 @@ class EstoqueMovimentacoesPage extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const EstoqueMovimentacoesPage(
-                      nomeUsuario: "",
-                      emailUsuario: "",
+                    builder: (context) => EstoqueMovimentacoesListPage(
+                      nomeUsuario: nomeUsuario,
+                      emailUsuario: emailUsuario,
                     ),
                   ),
                 );
@@ -56,17 +65,7 @@ class EstoqueMovimentacoesPage extends StatelessWidget {
               icon: Icons.add_box,
               label: "Adicionar Movimentação",
               color: Colors.green,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => EstoqueAdicionarPage(
-                      nomeUsuario: nomeUsuario,
-                      emailUsuario: emailUsuario,
-                    ),
-                  ),
-                );
-              },
+              onTap: () {},
             ),
             _EstoqueCard(
               icon: Icons.inventory_2,

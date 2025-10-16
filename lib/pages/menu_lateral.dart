@@ -54,6 +54,15 @@ class BaseScaffold extends StatelessWidget {
               title: const Text("Início"),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => HomePage(
+                      nomeUsuario: nomeUsuario,
+                      emailUsuario: emailUsuario,
+                    ),
+                  ),
+                );
               },
             ),
             ListTile(
@@ -61,7 +70,7 @@ class BaseScaffold extends StatelessWidget {
               title: const Text("Financeiro"),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(
+                /*Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => FinanceiroPage(
@@ -69,7 +78,7 @@ class BaseScaffold extends StatelessWidget {
                       emailUsuario: emailUsuario,
                     ),
                   ),
-                );
+                );*/
               },
             ),
             ListTile(

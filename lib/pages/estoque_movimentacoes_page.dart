@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zeroone/estoque_visao_geral.dart';
+import 'package:zeroone/pages/estoque_adicionar_movimentacao.dart';
 import 'package:zeroone/pages/lista_movimentacoes_page.dart';
 import 'menu_lateral.dart';
 import 'estoque_lista_page.dart';
@@ -65,7 +66,17 @@ class EstoqueMovimentacoesPage extends StatelessWidget {
               icon: Icons.add_box,
               label: "Adicionar Movimentação",
               color: Colors.green,
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EstoqueAdicionarMovimentacaoPage(
+                      nomeUsuario: nomeUsuario,
+                      emailUsuario: emailUsuario,
+                    ),
+                  ),
+                );
+              },
             ),
             _EstoqueCard(
               icon: Icons.inventory_2,

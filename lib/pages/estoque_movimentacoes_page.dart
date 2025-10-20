@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zeroone/estoque_visao_geral.dart';
 import 'package:zeroone/pages/estoque_adicionar_movimentacao.dart';
 import 'package:zeroone/pages/lista_movimentacoes_page.dart';
+import 'package:zeroone/pages/movimentacao_relatorios_page.dart';
 import 'menu_lateral.dart';
 import 'estoque_lista_page.dart';
 import 'estoque_adicionar_page.dart';
@@ -99,8 +100,14 @@ class EstoqueMovimentacoesPage extends StatelessWidget {
               label: "Relatórios",
               color: Colors.red,
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Relatórios clicado!")),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MovimentacaoRelatoriosPage(
+                      nomeUsuario: nomeUsuario,
+                      emailUsuario: emailUsuario,
+                    ),
+                  ),
                 );
               },
             ),

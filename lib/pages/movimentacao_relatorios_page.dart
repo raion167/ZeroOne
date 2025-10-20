@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:zeroone/pages/estoque_adicionar_page.dart';
-import 'package:zeroone/pages/estoque_lista_page.dart';
-import 'package:zeroone/pages/estoque_movimentacoes_page.dart';
-import 'package:zeroone/pages/estoque_relatorios_page.dart';
+import 'package:zeroone/pages/relatorio_entradas_page.dart';
+import 'package:zeroone/pages/relatorio_estoque_page.dart';
+import 'package:zeroone/pages/relatorio_perdas_page.dart';
+import 'package:zeroone/pages/relatorio_saidas_page.dart';
 import 'menu_lateral.dart';
-import 'estoque_lista_page.dart';
-import 'estoque_adicionar_page.dart';
-import 'estoque_movimentacoes_page.dart';
-import 'estoque_relatorios_page.dart';
 
-class ControleEstoquePage extends StatelessWidget {
+class MovimentacaoRelatoriosPage extends StatelessWidget {
   final String nomeUsuario;
   final String emailUsuario;
 
-  const ControleEstoquePage({
+  const MovimentacaoRelatoriosPage({
     super.key,
     required this.nomeUsuario,
     required this.emailUsuario,
@@ -22,7 +18,7 @@ class ControleEstoquePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BaseScaffold(
-      titulo: "Controle de Estoque",
+      titulo: "Relatórios de Movimentação",
       nomeUsuario: nomeUsuario,
       emailUsuario: emailUsuario,
       corpo: Padding(
@@ -32,15 +28,15 @@ class ControleEstoquePage extends StatelessWidget {
           mainAxisSpacing: 16,
           crossAxisSpacing: 16,
           children: [
-            _EstoqueCard(
-              icon: Icons.inventory,
-              label: "Itens em Estoque",
-              color: Colors.blue,
+            _RelatorioCard(
+              icon: Icons.inventory_2,
+              label: "Relatório de Estoque",
+              color: Colors.blue.shade700,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EstoqueListaPage(
+                    builder: (context) => RelatorioEstoquePage(
                       nomeUsuario: nomeUsuario,
                       emailUsuario: emailUsuario,
                     ),
@@ -48,15 +44,15 @@ class ControleEstoquePage extends StatelessWidget {
                 );
               },
             ),
-            _EstoqueCard(
-              icon: Icons.add_box,
-              label: "Adicionar Item",
-              color: Colors.green,
+            _RelatorioCard(
+              icon: Icons.warning_amber,
+              label: "Relatório de Perdas",
+              color: Colors.red.shade700,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EstoqueAdicionarPage(
+                    builder: (context) => RelatorioPerdasPage(
                       nomeUsuario: nomeUsuario,
                       emailUsuario: emailUsuario,
                     ),
@@ -64,15 +60,15 @@ class ControleEstoquePage extends StatelessWidget {
                 );
               },
             ),
-            _EstoqueCard(
-              icon: Icons.swap_horiz,
-              label: "Movimentações",
-              color: Colors.orange,
+            _RelatorioCard(
+              icon: Icons.arrow_upward,
+              label: "Relatório de Entradas",
+              color: Colors.green.shade700,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EstoqueMovimentacoesPage(
+                    builder: (context) => RelatorioEntradasPage(
                       nomeUsuario: nomeUsuario,
                       emailUsuario: emailUsuario,
                     ),
@@ -80,22 +76,22 @@ class ControleEstoquePage extends StatelessWidget {
                 );
               },
             ),
-            /*_EstoqueCard(
-              icon: Icons.bar_chart,
-              label: "Relatórios",
-              color: Colors.purple,
+            _RelatorioCard(
+              icon: Icons.arrow_upward,
+              label: "Relatório de Saídas",
+              color: Colors.orange.shade700,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EstoqueRelatoriosPage(
+                    builder: (context) => RelatorioSaidasPage(
                       nomeUsuario: nomeUsuario,
                       emailUsuario: emailUsuario,
                     ),
                   ),
                 );
               },
-            ),*/
+            ),
           ],
         ),
       ),
@@ -103,13 +99,13 @@ class ControleEstoquePage extends StatelessWidget {
   }
 }
 
-class _EstoqueCard extends StatelessWidget {
+class _RelatorioCard extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
 
-  const _EstoqueCard({
+  const _RelatorioCard({
     required this.icon,
     required this.label,
     required this.color,
@@ -119,26 +115,38 @@ class _EstoqueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: Colors.white,
-      elevation: 4,
+      elevation: 6,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 48),
-            const SizedBox(height: 10),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              colors: [color.withOpacity(0.85), color.withOpacity(0.6)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ],
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 48, color: Colors.white),
+                const SizedBox(height: 8),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

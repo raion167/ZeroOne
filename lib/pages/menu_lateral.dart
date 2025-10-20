@@ -4,6 +4,7 @@ import 'package:zeroone/pages/financeiro_page.dart';
 import 'monitoramento_clientes_page.dart';
 import 'pagina_inicial.dart';
 import 'package:zeroone/main.dart';
+import 'operacional_page.dart';
 
 class BaseScaffold extends StatelessWidget {
   final String titulo;
@@ -122,6 +123,22 @@ class BaseScaffold extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => MonitoramentoClientesPage(
+                      nomeUsuario: nomeUsuario, // Passe o nome do usuário
+                      emailUsuario: emailUsuario, // Passe o email do usuário
+                    ),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.engineering),
+              title: const Text("Operacional"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => OperacionalPage(
                       nomeUsuario: nomeUsuario, // Passe o nome do usuário
                       emailUsuario: emailUsuario, // Passe o email do usuário
                     ),

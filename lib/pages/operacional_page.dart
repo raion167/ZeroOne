@@ -52,10 +52,7 @@ class OperacionalPage extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => OperacionalOperadoresPage(
-                      nomeUsuario: nomeUsuario,
-                      emailUsuario: emailUsuario,
-                    ),
+                    builder: (_) => OperacionalOperadoresPage(),
                   ),
                 );
               },

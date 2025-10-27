@@ -50,7 +50,9 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
     );
     final data = jsonDecode(response.body);
     if (data["success"]) {
-      operadores = List<dynamic>.from(data["operadores"] ?? []);
+      setState(() {
+        operadores = List<dynamic>.from(data["operadores"] ?? []);
+      });
     }
   }
 
@@ -60,9 +62,13 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
         "http://localhost:8080/app/listar_projetos_equipe.php?equipe_id=${widget.equipeId}",
       ),
     );
+
     final data = jsonDecode(response.body);
+
     if (data["success"]) {
-      projetos = List<dynamic>.from(data["projetos"] ?? []);
+      setState(() {
+        projetos = List<dynamic>.from(data["projetos"] ?? []);
+      });
     }
   }
 
@@ -74,7 +80,9 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
     );
     final data = jsonDecode(response.body);
     if (data["success"]) {
-      status = List<dynamic>.from(data["status"] ?? []);
+      setState(() {
+        status = List<dynamic>.from(data["status"] ?? []);
+      });
     }
   }
 

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:zeroone/pages/detalhes_projeto_page.dart';
 
 class OperacionalEquipesPage extends StatefulWidget {
   final String nomeUsuario;
@@ -277,14 +278,22 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
   }
 
   Future<void> carregarOperadores() async {
-    final response = await http.get(
-      Uri.parse(
-        "http://localhost:8080/app/listar_operadores_equipe.php?equipe_id=${widget.equipeId}",
-      ),
-    );
-    final data = jsonDecode(response.body);
-    if (data["success"]) {
-      operadores = List<dynamic>.from(data["operadores"] ?? []);
+    try {
+      final response = await http.get(
+        Uri.parse(
+          "http://localhost:8080/app/listar_operadores_equipe.php?equipe_id=${widget.equipeId}",
+        ),
+      );
+      final data = jsonDecode(response.body);
+      if (data["success"] == true) {
+        setState(() {
+          operadores = List<dynamic>.from(data["operadores"] ?? []);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erro ao carregar operadores: $e")),
+      );
     }
   }
 
@@ -335,6 +344,7 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
     );
   }
 
+  // ABA DE OPERADORES CADASTRADOS
   Widget _buildOperadores() {
     if (operadores.isEmpty) {
       return const Center(
@@ -357,12 +367,14 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
     );
   }
 
+  // ABA DE PROJETOS
   Widget _buildProjetos() {
     if (projetos.isEmpty) {
       return const Center(
-        child: Text("Nenhum projeto cadastrado para esta equipe."),
+        child: Text("Nenhum projeto cadastrado para essa equipe"),
       );
     }
+
     return ListView.builder(
       padding: const EdgeInsets.all(8),
       itemCount: projetos.length,
@@ -373,12 +385,24 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
             leading: const Icon(Icons.assignment),
             title: Text(p["titulo"] ?? "Projeto sem título"),
             subtitle: Text(p["descricao"] ?? ""),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => DetalhesProjetoPage(
+                    projetoId: int.parse(p["id"].toString()),
+                    tituloProjeto: p["titulo"],
+                  ),
+                ),
+              );
+            },
           ),
         );
       },
     );
   }
 
+  // ABA DE STATUS DA EQUIPE
   Widget _buildStatus() {
     if (status.isEmpty) {
       return const Center(child: Text("Nenhum status registrado."));

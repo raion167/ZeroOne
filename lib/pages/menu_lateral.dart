@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:zeroone/pages/controle_estoque_page.dart';
+import 'package:zeroone/pages/engenharia_page.dart';
 import 'package:zeroone/pages/financeiro_page.dart';
+import 'package:zeroone/pages/projetos_page.dart';
 import 'monitoramento_clientes_page.dart';
 import 'pagina_inicial.dart';
 import 'package:zeroone/main.dart';
@@ -143,6 +145,28 @@ class BaseScaffold extends StatelessWidget {
                       emailUsuario: emailUsuario, // Passe o email do usuário
                     ),
                   ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.assignment),
+              title: const Text("Projetos"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ProjetosPage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.engineering),
+              title: const Text("Engenharia"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => EngenhariaPage()),
                 );
               },
             ),

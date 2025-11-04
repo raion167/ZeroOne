@@ -9,16 +9,21 @@ class ProjetosPage extends StatefulWidget {
   State<ProjetosPage> createState() => _ProjetosPageState();
 }
 
-class _ProjetosPageState extends State<ProjetosPage> {
+class _ProjetosPageState extends State<ProjetosPage>
+    with SingleTickerProviderStateMixin {
   bool carregando = true;
   List<dynamic> projetos = [];
   List<dynamic> equipes = [];
   List<dynamic> materiais = [];
   Map<int, int> selecionados = {}; // {id_material: quantidade}
+  String searchQuery = "";
+
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     carregarProjetos();
   }
 
@@ -45,6 +50,78 @@ class _ProjetosPageState extends State<ProjetosPage> {
     }
   }
 
+  // 🔹 Função para deletar projeto
+  Future<void> deletarProjeto(dynamic id) async {
+    final int idConvertido = int.tryParse(id.toString()) ?? 0;
+    try {
+      final response = await http.post(
+        Uri.parse("http://localhost:8080/app/deletar_projeto.php"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"id": idConvertido}),
+      );
+
+      final data = jsonDecode(response.body);
+      if (data["success"] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Projeto excluído com sucesso!")),
+        );
+        carregarProjetos();
+      } else {
+        throw Exception(data["message"] ?? "Erro ao excluir projeto");
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Erro ao excluir projeto: $e")));
+    }
+  }
+
+  // 🔹 Alerta de confirmação antes de excluir
+  void confirmarExclusao(int id, String titulo) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Excluir Projeto"),
+        content: Text('Deseja realmente excluir o projeto "$titulo"?'),
+        actions: [
+          TextButton(
+            child: const Text("Cancelar"),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            icon: const Icon(Icons.delete, color: Colors.white),
+            label: const Text("Excluir", style: TextStyle(color: Colors.white)),
+            onPressed: () {
+              Navigator.pop(context);
+              deletarProjeto(id);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<dynamic> filtrarProjetos(String status) {
+    final lista = projetos.where((p) {
+      final st = (p["status"] ?? "").toString().trim().toLowerCase();
+      if (status == "Em Andamento") {
+        return st == "em andamento" || st == "a fazer";
+      }
+      return st == "concluído";
+    }).toList();
+
+    if (searchQuery.isEmpty) return lista;
+
+    return lista
+        .where(
+          (p) => (p["cliente_nome"] ?? "").toLowerCase().contains(
+            searchQuery.toLowerCase(),
+          ),
+        )
+        .toList();
+  }
+
   Future<void> carregarEquipes() async {
     try {
       final response = await http.get(
@@ -66,11 +143,6 @@ class _ProjetosPageState extends State<ProjetosPage> {
       final response = await http.get(
         Uri.parse("http://localhost:8080/app/listar_estoque.php"),
       );
-
-      if (response.statusCode != 200) {
-        throw Exception("Erro HTTP ${response.statusCode}");
-      }
-
       final data = jsonDecode(response.body);
       if (data["success"] == true && data["itens"] != null) {
         setState(() {
@@ -89,6 +161,7 @@ class _ProjetosPageState extends State<ProjetosPage> {
     }
   }
 
+  // 🔹 Criação de projeto permanece igual
   void abrirCadastroProjeto() async {
     await carregarEquipes();
     await carregarMateriais();
@@ -101,7 +174,7 @@ class _ProjetosPageState extends State<ProjetosPage> {
     String? equipeSelecionada;
 
     selecionados.clear();
-    int etapa = 1; // controla o avanço entre formulário e materiais
+    int etapa = 1;
 
     showDialog(
       context: context,
@@ -204,9 +277,7 @@ class _ProjetosPageState extends State<ProjetosPage> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         IconButton(
-                                          icon: const Icon(
-                                            Icons.remove_circle_outline,
-                                          ),
+                                          icon: const Icon(Icons.remove_circle),
                                           onPressed: qtdSelecionada > 0
                                               ? () {
                                                   setStateDialog(() {
@@ -221,9 +292,7 @@ class _ProjetosPageState extends State<ProjetosPage> {
                                         ),
                                         Text(qtdSelecionada.toString()),
                                         IconButton(
-                                          icon: const Icon(
-                                            Icons.add_circle_outline,
-                                          ),
+                                          icon: const Icon(Icons.add_circle),
                                           onPressed:
                                               qtdSelecionada < qtdDisponivel
                                               ? () {
@@ -328,7 +397,6 @@ class _ProjetosPageState extends State<ProjetosPage> {
       final data = jsonDecode(response.body);
       if (data["success"] == true) {
         final projetoId = data["projeto_id"];
-
         if (selecionados.isNotEmpty) {
           await adicionarMateriaisAoProjeto(projetoId);
         }
@@ -351,7 +419,6 @@ class _ProjetosPageState extends State<ProjetosPage> {
     final url = Uri.parse(
       "http://localhost:8080/app/adicionar_materiais_projeto.php",
     );
-
     final body = {
       "projeto_id": projetoId,
       "materiais": selecionados.entries.map((e) {
@@ -366,13 +433,59 @@ class _ProjetosPageState extends State<ProjetosPage> {
     );
   }
 
+  Widget _buildListaProjetos(String status) {
+    final lista = filtrarProjetos(status);
+    if (lista.isEmpty) {
+      return const Center(child: Text("Nenhum projeto encontrado."));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: lista.length,
+      itemBuilder: (context, index) {
+        final p = lista[index];
+        return Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 3,
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          child: ListTile(
+            leading: const Icon(Icons.assignment, color: Colors.orange),
+            title: Text(p["titulo"]),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("Cliente: ${p["cliente_nome"] ?? "—"}"),
+                Text("Equipe: ${p["equipe_nome"] ?? "Sem equipe"}"),
+              ],
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => confirmarExclusao(
+                int.tryParse(p["id"].toString()) ?? 0,
+                p["titulo"],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Projetos de Energia Solar"),
+        title: const Text("Projetos"),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: "Em Andamento"),
+            Tab(text: "Concluídos"),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: abrirCadastroProjeto,
@@ -380,35 +493,38 @@ class _ProjetosPageState extends State<ProjetosPage> {
         icon: const Icon(Icons.add),
         backgroundColor: Colors.black,
       ),
-      body: carregando
-          ? const Center(child: CircularProgressIndicator())
-          : projetos.isEmpty
-          ? const Center(child: Text("Nenhum projeto cadastrado."))
-          : ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: projetos.length,
-              itemBuilder: (context, index) {
-                final p = projetos[index];
-                return Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 3,
-                  margin: const EdgeInsets.symmetric(vertical: 6),
-                  child: ListTile(
-                    leading: const Icon(Icons.assignment, color: Colors.orange),
-                    title: Text(p["titulo"]),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Cliente: ${p["cliente_nome"] ?? "—"}"),
-                        Text("Equipe: ${p["equipe_nome"] ?? "Sem equipe"}"),
-                      ],
-                    ),
-                  ),
-                );
-              },
+      body: Column(
+        children: [
+          // 🔍 Barra de pesquisa
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: "Buscar por cliente...",
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.grey[200],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (v) => setState(() => searchQuery = v),
             ),
+          ),
+          Expanded(
+            child: carregando
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildListaProjetos("Em Andamento"),
+                      _buildListaProjetos("Concluído"),
+                    ],
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

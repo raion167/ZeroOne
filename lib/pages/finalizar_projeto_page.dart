@@ -34,45 +34,54 @@ class _FinalizarProjetoPageState extends State<FinalizarProjetoPage> {
     setState(() => isLoading = true);
 
     try {
+      // Converte assinatura em imagem
       final Uint8List? assinaturaBytes = await _signatureController
           .toPngBytes();
-      if (assinaturaBytes == null) return;
+      if (assinaturaBytes == null) {
+        throw Exception("Falha ao gerar imagem da assinatura");
+      }
 
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse("http://localhost:8080/app/finalizar_projeto.php"),
-      );
+      // ⚠️ Troque localhost pelo IP da sua máquina se estiver testando no celular
+      final uri = Uri.parse("http://localhost:8080/app/finalizar_projeto.php");
 
+      var request = http.MultipartRequest('POST', uri);
+
+      // Envia os campos obrigatórios
       request.fields['projeto_id'] = widget.projetoId.toString();
       request.fields['observacoes'] = obsController.text;
 
+      // Adiciona o arquivo de assinatura
       request.files.add(
         http.MultipartFile.fromBytes(
           'assinatura',
           assinaturaBytes,
-          filename: "assinatura_${widget.projetoId}.png",
+          filename: 'assinatura_${widget.projetoId}.png',
         ),
       );
 
+      // Envia a requisição
       final response = await request.send();
-      final respStr = await response.stream.bytesToString();
+      final body = await response.stream.bytesToString();
 
-      final data = jsonDecode(respStr);
+      // Tenta decodificar a resposta JSON
+      final data = jsonDecode(body);
 
       if (data["success"] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Projeto finalizado com sucesso!")),
+          const SnackBar(content: Text("✅ Projeto finalizado com sucesso!")),
         );
         Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Erro: ${data["message"]}")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Erro: ${data["message"] ?? 'Erro desconhecido'}"),
+          ),
+        );
       }
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Erro ao enviar: $e")));
+      ).showSnackBar(SnackBar(content: Text("Erro ao finalizar: $e")));
     } finally {
       setState(() => isLoading = false);
     }

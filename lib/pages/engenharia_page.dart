@@ -462,6 +462,7 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
                   context,
                   MaterialPageRoute(builder: (context) => ProjetosPage()),
                 );
+                carregarProjetos();
               },
               child: const Icon(Icons.add),
             ),

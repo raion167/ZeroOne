@@ -24,33 +24,18 @@ class _DetalhesProjetoPageState extends State<DetalhesProjetoPage>
   bool carregando = true;
   List<dynamic> materiais = [];
 
-  // Controladores
-  late final TextEditingController observacaoController;
-  late final SignatureController _signatureController;
+  final TextEditingController observacoesController = TextEditingController();
+  final SignatureController assinaturaController = SignatureController(
+    penStrokeWidth: 3,
+    penColor: Colors.black,
+    exportBackgroundColor: Colors.white,
+  );
 
   @override
   void initState() {
     super.initState();
-
     _tabController = TabController(length: 2, vsync: this);
-
-    // 🔧 Inicialização correta dos controladores
-    observacaoController = TextEditingController();
-    _signatureController = SignatureController(
-      penStrokeWidth: 2,
-      penColor: Colors.black,
-      exportBackgroundColor: Colors.white,
-    );
-
     carregarMateriais();
-  }
-
-  @override
-  void dispose() {
-    observacaoController.dispose();
-    _signatureController.dispose();
-    _tabController.dispose();
-    super.dispose();
   }
 
   Future<void> carregarMateriais() async {
@@ -77,6 +62,67 @@ class _DetalhesProjetoPageState extends State<DetalhesProjetoPage>
     }
   }
 
+  Future<void> atualizarMaterialProjeto({
+    required int estoqueId,
+    required bool checado,
+    int? quantidadeUsada,
+  }) async {
+    final url = Uri.parse(
+      "http://localhost:8080/app/atualizar_material_projeto.php",
+    );
+    final body = {
+      "projeto_id": widget.projetoId,
+      "estoque_id": estoqueId,
+      "checado": checado ? 1 : 0,
+      "quantidade_usada": quantidadeUsada ?? 0,
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(body),
+      );
+
+      // debug rápido: se não for 200, mostra corpo
+      if (response.statusCode != 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Erro HTTP ${response.statusCode}: ${response.body}"),
+          ),
+        );
+        return;
+      }
+
+      // tenta decodificar, mas protege contra JSON inválido
+      try {
+        final data = jsonDecode(response.body);
+        if (data is Map && data["success"] == true) {
+          // ok
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "Falha ao atualizar: ${data['message'] ?? response.body}",
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        // Mostra retorno bruto para ajudar debug (HTML/warnings)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Resposta inválida do servidor: ${response.body}"),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erro de rede ao atualizar material: $e")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,6 +145,7 @@ class _DetalhesProjetoPageState extends State<DetalhesProjetoPage>
     );
   }
 
+  // LISTA DE MATERIAIS
   Widget _buildChecklist() {
     if (materiais.isEmpty) {
       return const Center(
@@ -111,7 +158,16 @@ class _DetalhesProjetoPageState extends State<DetalhesProjetoPage>
       itemBuilder: (context, i) {
         final m = materiais[i];
         final nome = m["nome"] ?? "Material sem nome";
-        final quantidadeNecessaria = m["quantidade_necessaria"] ?? 0;
+        final estoqueId = int.parse(m["estoque_id"].toString());
+        final quantidadeNecessaria =
+            int.tryParse(m["quantidade_necessaria"]?.toString() ?? "0") ?? 0;
+        final quantidadeUsada =
+            int.tryParse(m["quantidade_usada"]?.toString() ?? "0") ?? 0;
+        final checado =
+            m["checado"] == 1 ||
+            m["checado"] == true ||
+            m["checado"] == "1" ||
+            m["checado"] == "true";
 
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
@@ -119,116 +175,116 @@ class _DetalhesProjetoPageState extends State<DetalhesProjetoPage>
             borderRadius: BorderRadius.circular(12),
           ),
           elevation: 2,
-          child: CheckboxListTile(
-            title: Text(
-              nome,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text("Quantidade atribuída: $quantidadeNecessaria"),
-            value: m["checado"] == true,
-            onChanged: (v) {
-              setState(() {
-                m["checado"] = v;
-              });
-            },
+          child: Column(
+            children: [
+              CheckboxListTile(
+                title: Text(
+                  nome,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text("Quantidade necessária: $quantidadeNecessaria"),
+                value: checado,
+                onChanged: (v) {
+                  setState(() {
+                    m["checado"] = v == true ? 1 : 0;
+                  });
+                  atualizarMaterialProjeto(
+                    estoqueId: estoqueId,
+                    checado: v ?? false,
+                    quantidadeUsada: quantidadeUsada,
+                  );
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    const Text("Usado: "),
+                    IconButton(
+                      icon: const Icon(Icons.remove),
+                      onPressed: () {
+                        if (m["quantidade_usada"] > 0) {
+                          setState(() => m["quantidade_usada"]--);
+                          atualizarMaterialProjeto(
+                            estoqueId: estoqueId,
+                            checado: checado,
+                            quantidadeUsada: m["quantidade_usada"],
+                          );
+                        }
+                      },
+                    ),
+                    Text(m["quantidade_usada"].toString()),
+                    IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: () {
+                        setState(() => m["quantidade_usada"]++);
+                        atualizarMaterialProjeto(
+                          estoqueId: estoqueId,
+                          checado: checado,
+                          quantidadeUsada: m["quantidade_usada"],
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         );
       },
     );
   }
 
+  // ABA DE FINALIZAÇÃO
   Widget _buildFinalizar() {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(16),
       child: SingleChildScrollView(
         child: Column(
           children: [
-            const Text(
-              "Observações sobre o serviço:",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
             TextField(
-              controller: observacaoController,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                hintText: "Digite observações sobre o projeto...",
-              ),
+              controller: observacoesController,
               maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: "Observações sobre o serviço",
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 20),
-
             const Text(
-              "Assinatura do responsável:",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              "Assinatura do cliente:",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8),
-
-            // 🖊️ Campo de assinatura
+            const SizedBox(height: 10),
             Container(
-              height: 200,
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.black26),
+                borderRadius: BorderRadius.circular(8),
               ),
+              height: 200,
               child: Signature(
-                controller: _signatureController,
-                backgroundColor: Colors.grey[100]!,
+                controller: assinaturaController,
+                backgroundColor: Colors.white,
               ),
             ),
             const SizedBox(height: 10),
-
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                TextButton.icon(
-                  icon: const Icon(Icons.clear),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.cleaning_services),
                   label: const Text("Limpar"),
-                  onPressed: () {
-                    _signatureController.clear();
-                  },
+                  onPressed: () => assinaturaController.clear(),
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.save),
+                  label: const Text("Finalizar Projeto"),
+                  onPressed: finalizarProjeto,
                 ),
               ],
-            ),
-            const SizedBox(height: 20),
-
-            ElevatedButton.icon(
-              icon: const Icon(Icons.check),
-              label: const Text("Finalizar Projeto"),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 14,
-                ),
-                textStyle: const TextStyle(fontSize: 16),
-              ),
-              onPressed: () async {
-                final confirmar = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text("Finalizar Projeto"),
-                    content: const Text(
-                      "Deseja realmente finalizar este projeto?",
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text("Cancelar"),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text("Confirmar"),
-                      ),
-                    ],
-                  ),
-                );
-
-                if (confirmar == true) {
-                  await finalizarProjeto();
-                }
-              },
             ),
           ],
         ),
@@ -236,32 +292,40 @@ class _DetalhesProjetoPageState extends State<DetalhesProjetoPage>
     );
   }
 
+  // FINALIZAÇÃO DO PROJETO
   Future<void> finalizarProjeto() async {
     try {
-      Uint8List? assinaturaBytes = await _signatureController.toPngBytes();
+      final assinatura = await assinaturaController.toPngBytes();
 
-      if (assinaturaBytes == null || assinaturaBytes.isEmpty) {
+      if (assinatura == null || assinatura.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Por favor, insira a assinatura.")),
+          const SnackBar(
+            content: Text("Por favor, assine antes de finalizar."),
+          ),
         );
         return;
       }
 
-      final assinaturaBase64 = base64Encode(assinaturaBytes);
-
-      final res = await http.post(
+      final request = http.MultipartRequest(
+        "POST",
         Uri.parse("http://localhost:8080/app/finalizar_projeto.php"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "projeto_id": widget.projetoId,
-          "observacoes": observacaoController.text,
-          "assinatura": assinaturaBase64,
-        }),
       );
 
-      final data = jsonDecode(res.body);
+      request.fields["projeto_id"] = widget.projetoId.toString();
+      request.fields["observacoes"] = observacoesController.text;
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          "assinatura",
+          assinatura,
+          filename: "assinatura.png",
+        ),
+      );
 
-      if (data["success"]) {
+      final res = await request.send();
+      final body = await res.stream.bytesToString();
+      final data = jsonDecode(body);
+
+      if (data["success"] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Projeto finalizado com sucesso!")),
         );
@@ -269,12 +333,12 @@ class _DetalhesProjetoPageState extends State<DetalhesProjetoPage>
       } else {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("Erro: ${data["message"]}")));
+        ).showSnackBar(SnackBar(content: Text("Erro: ${data['message']}")));
       }
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Erro: $e")));
+      ).showSnackBar(SnackBar(content: Text("Erro ao finalizar: $e")));
     }
   }
 }

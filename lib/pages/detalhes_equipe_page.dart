@@ -78,10 +78,18 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
         "http://localhost:8080/app/listar_status_equipe.php?equipe_id=${widget.equipeId}",
       ),
     );
+
     final data = jsonDecode(response.body);
+
     if (data["success"]) {
       setState(() {
-        status = List<dynamic>.from(data["status"] ?? []);
+        status = [
+          {
+            "total": data["total"],
+            "finalizados": data["finalizados"],
+            "andamento": data["andamento"],
+          },
+        ];
       });
     }
   }
@@ -204,22 +212,80 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
 
   Widget _buildStatus() {
     if (status.isEmpty) {
-      return const Center(child: Text("Nenhum status registrado."));
+      return const Center(child: Text("Nenhum status registrado"));
     }
-    return ListView.builder(
-      padding: const EdgeInsets.all(8),
-      itemCount: status.length,
-      itemBuilder: (context, index) {
-        final s = status[index];
-        return Card(
-          child: ListTile(
-            leading: const Icon(Icons.analytics_outlined),
-            title: Text(s["titulo"] ?? "Sem título"),
-            subtitle: Text(s["descricao"] ?? ""),
-            trailing: Text(s["data"] ?? ""),
+
+    final dados = status[0];
+
+    final totalOS = dados["total"];
+    final osFinalizadas = dados["finalizados"];
+    final osAndamento = dados["andamento"];
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Flexible(
+                child: _buildStatusCard(
+                  titulo: "Total de OS",
+                  valor: totalOS.toString(),
+                  cor: Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: _buildStatusCard(
+                  titulo: "Finalizadas",
+                  valor: osFinalizadas.toString(),
+                  cor: Colors.green,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: _buildStatusCard(
+                  titulo: "Em andamento",
+                  valor: osAndamento.toString(),
+                  cor: Colors.orange,
+                ),
+              ),
+            ],
           ),
-        );
-      },
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusCard({
+    required String titulo,
+    required String valor,
+    required Color cor,
+  }) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+        child: Column(
+          children: [
+            Text(
+              valor,
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: cor,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              titulo,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

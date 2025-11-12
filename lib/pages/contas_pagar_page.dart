@@ -1,29 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:zeroone/pages/analise_viabilidade.dart';
-import 'package:zeroone/pages/contas_pagar_page.dart';
-import 'package:zeroone/pages/demonstracoes_financeiras_page.dart';
-import 'simular_orcamento_page.dart';
-import 'nova_venda_page.dart';
-import 'lista_vendas_page.dart';
-import 'menu_lateral.dart';
+import 'contas_visao_geral.dart';
+import 'contas_listagem.dart';
+import 'contas_relatorios.dart';
+import 'contas_analises.dart';
 
-class FinanceiroPage extends StatelessWidget {
-  final String nomeUsuario;
-  final String emailUsuario;
-
-  const FinanceiroPage({
-    super.key,
-    required this.nomeUsuario,
-    required this.emailUsuario,
-  });
+class ContasPagarPage extends StatelessWidget {
+  const ContasPagarPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BaseScaffold(
-      titulo: "Financeiro",
-      nomeUsuario: nomeUsuario,
-      emailUsuario: emailUsuario,
-      corpo: Padding(
+    return Scaffold(
+      appBar: AppBar(title: const Text("Contas a Pagar")),
+      body: Padding(
         padding: const EdgeInsets.all(16),
         child: GridView.count(
           crossAxisCount: 2,
@@ -31,44 +19,38 @@ class FinanceiroPage extends StatelessWidget {
           crossAxisSpacing: 16,
           children: [
             _FinanceiroCard(
-              icon: Icons.payments,
-              label: "Contas a Pagar",
-              color: Colors.green,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ContasPagarPage()),
-                );
-              },
-            ),
-            _FinanceiroCard(
-              icon: Icons.bar_chart,
-              label: "Demonstrações Financeiras",
+              icon: Icons.dashboard,
+              label: "Visão Geral",
               color: Colors.blue,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => DemonstracoesFinanceirasPage(),
+                    builder: (_) => const ContasVisaoGeralPage(),
                   ),
                 );
               },
             ),
             _FinanceiroCard(
-              icon: Icons.work,
-              label: "Gestão de Projetos e Custos",
-              color: Colors.red,
-              onTap: () {},
+              icon: Icons.list_alt,
+              label: "Listagem de Contas",
+              color: Colors.green,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ContasListagemPage()),
+                );
+              },
             ),
             _FinanceiroCard(
-              icon: Icons.analytics,
-              label: "Análise de Viabilidade",
-              color: Colors.grey,
+              icon: Icons.bar_chart,
+              label: "Relatórios e Análises Financeiras",
+              color: Colors.orange,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => AnaliseViabilidadePage(),
+                    builder: (_) => const ContasRelatoriosPage(),
                   ),
                 );
               },
@@ -96,14 +78,13 @@ class _FinanceiroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: Colors.white,
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -111,6 +92,7 @@ class _FinanceiroCard extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 label,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

@@ -23,12 +23,19 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
 
   List<dynamic> operadores = [];
   List<dynamic> projetos = [];
-  List<dynamic> status = [];
+  Map<String, dynamic> status = {};
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+
+    _tabController.addListener(() {
+      if (_tabController.index == 2) {
+        setState(() {}); // força atualização da aba Status
+      }
+    });
+
     carregarDados();
   }
 
@@ -83,13 +90,11 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
 
     if (data["success"]) {
       setState(() {
-        status = [
-          {
-            "total": data["total"],
-            "finalizados": data["finalizados"],
-            "andamento": data["andamento"],
-          },
-        ];
+        status = {
+          "total": data["total"],
+          "finalizados": data["finalizados"],
+          "andamento": data["andamento"],
+        };
       });
     }
   }
@@ -212,14 +217,13 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
 
   Widget _buildStatus() {
     if (status.isEmpty) {
-      return const Center(child: Text("Nenhum status registrado"));
+      return const Center(child: CircularProgressIndicator());
     }
+    //final dados = status[];
 
-    final dados = status[0];
-
-    final totalOS = dados["total"];
-    final osFinalizadas = dados["finalizados"];
-    final osAndamento = dados["andamento"];
+    final totalOS = status["total"] ?? 0;
+    final osFinalizadas = status["finalizados"] ?? 0;
+    final osAndamento = status["andamento"] ?? 0;
 
     return Padding(
       padding: const EdgeInsets.all(16),

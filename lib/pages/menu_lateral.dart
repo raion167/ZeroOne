@@ -7,6 +7,7 @@ import 'monitoramento_clientes_page.dart';
 import 'pagina_inicial.dart';
 import 'package:zeroone/main.dart';
 import 'operacional_page.dart';
+import 'nova_venda_page.dart';
 
 class BaseScaffold extends StatelessWidget {
   final String titulo;
@@ -73,7 +74,7 @@ class BaseScaffold extends StatelessWidget {
               title: const Text("Financeiro"),
               onTap: () {
                 Navigator.pop(context);
-                /*Navigator.push(
+                Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => FinanceiroPage(
@@ -81,7 +82,7 @@ class BaseScaffold extends StatelessWidget {
                       emailUsuario: emailUsuario,
                     ),
                   ),
-                );*/
+                );
               },
             ),
             ListTile(
@@ -91,12 +92,7 @@ class BaseScaffold extends StatelessWidget {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => FinanceiroPage(
-                      nomeUsuario: nomeUsuario,
-                      emailUsuario: emailUsuario,
-                    ),
-                  ),
+                  MaterialPageRoute(builder: (context) => NovaVendaPage()),
                 );
               },
             ),

@@ -392,7 +392,7 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                     child: Text(
                       vencimento == null
                           ? "Selecionar Vencimento"
-                          : DateFormat("dd/MM/yyyy").format(vencimento!),
+                          : DateFormat("yyyy/MM/dd").format(vencimento!),
                     ),
                   ),
                 ],
@@ -420,7 +420,7 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                     "projeto": projetoCtrl.text,
                     "valor": double.tryParse(valorCtrl.text) ?? 0,
                     "status": "Pendente",
-                    "vencimento": DateFormat("dd-MM-yyyy").format(vencimento!),
+                    "vencimento": DateFormat("yyyy-MM-dd").format(vencimento!),
                     "recorrencia": recorrencia,
                     "parcelas": parcelas,
                   };
@@ -569,7 +569,7 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                                     dataInicial == null
                                         ? "Data Inicial"
                                         : DateFormat(
-                                            "dd/MM/yyyy",
+                                            "yyyy/MM/dd",
                                           ).format(dataInicial!),
                                   ),
                                 ),
@@ -591,7 +591,7 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                                     dataFinal == null
                                         ? "Data Final"
                                         : DateFormat(
-                                            "dd/MM/yyyy",
+                                            "yyyy/MM/dd",
                                           ).format(dataFinal!),
                                   ),
                                 ),

@@ -117,17 +117,30 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
   // ✅ Aba 1 - Resumo Financeiro
   Widget _buildResumoFinanceiro() {
     double pagos = 0, pendentes = 0, atrasados = 0;
+
     final hoje = DateTime.now();
+    final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
 
     for (var c in contas) {
       double valor = double.tryParse(c["valor"].toString()) ?? 0;
       String status = c["status"].toString();
-      DateTime vencimento =
+
+      // Normalizar data do vencimento
+      DateTime vencimentoBruto =
           DateTime.tryParse(c["data_vencimento"].toString()) ?? hoje;
 
-      if (status == "Pago") pagos += valor;
-      if (status == "Pendente") {
-        if (vencimento.isBefore(hoje)) {
+      DateTime vencimento = DateTime(
+        vencimentoBruto.year,
+        vencimentoBruto.month,
+        vencimentoBruto.day,
+      );
+
+      if (status == "Pago") {
+        pagos += valor;
+      } else if (status == "Atrasado") {
+        atrasados += valor;
+      } else if (status == "Pendente") {
+        if (vencimento.isBefore(dataHoje)) {
           atrasados += valor;
         } else {
           pendentes += valor;
@@ -174,9 +187,8 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
 
     final contasPendentesEAtrasadas = contas.where((c) {
       String status = c["status"].toString();
-      if (status != "Pendente") return false;
-      DateTime venc =
-          DateTime.tryParse(c["data_vencimento"].toString()) ?? hoje;
+      if (status != "Pendente" && status != "Atrasado") return false;
+      DateTime venc = DateTime.tryParse(c["vencimento"].toString()) ?? hoje;
       return !venc.isAfter(hoje);
     }).toList();
 
@@ -190,7 +202,7 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
       itemBuilder: (context, index) {
         final conta = contasPendentesEAtrasadas[index];
         DateTime venc =
-            DateTime.tryParse(conta["data_vencimento"].toString()) ?? hoje;
+            DateTime.tryParse(conta["vencimento"].toString()) ?? hoje;
         bool atrasada = venc.isBefore(DateTime.now());
         return Card(
           child: ListTile(
@@ -209,7 +221,7 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
     );
   }
 
-  // ✅ Aba 3 - Fluxo de Caixa (agora estilizada como Vencimentos)
+  // ✅ Aba 3 - Fluxo de Caixa
   Widget _buildFluxoCaixaPrevisto() {
     return Column(
       children: [

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:zeroone/pages/analise_viabilidade.dart';
 import 'package:zeroone/pages/contas_pagar_page.dart';
 import 'package:zeroone/pages/demonstracoes_financeiras_page.dart';
+import 'package:zeroone/pages/entradas_page.dart';
+import 'package:zeroone/pages/gestao_projetos_custos_page.dart';
 import 'simular_orcamento_page.dart';
 import 'nova_venda_page.dart';
 import 'lista_vendas_page.dart';
@@ -33,11 +35,22 @@ class FinanceiroPage extends StatelessWidget {
             _FinanceiroCard(
               icon: Icons.payments,
               label: "Contas a Pagar",
-              color: Colors.green,
+              color: Colors.red,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => ContasPagarPage()),
+                );
+              },
+            ),
+            _FinanceiroCard(
+              icon: Icons.payments,
+              label: "Entradas",
+              color: Colors.green,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => EntradasPage()),
                 );
               },
             ),
@@ -56,20 +69,12 @@ class FinanceiroPage extends StatelessWidget {
             ),
             _FinanceiroCard(
               icon: Icons.work,
-              label: "Gestão de Projetos e Custos",
-              color: Colors.red,
-              onTap: () {},
-            ),
-            _FinanceiroCard(
-              icon: Icons.analytics,
-              label: "Análise de Viabilidade",
-              color: Colors.grey,
+              label: "Analise de Rentabilidade de Projetos",
+              color: Colors.orange,
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => AnaliseViabilidadePage(),
-                  ),
+                  MaterialPageRoute(builder: (context) => GestaoProjetosPage()),
                 );
               },
             ),

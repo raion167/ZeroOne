@@ -260,22 +260,41 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
   List<dynamic> projetos = [];
   List<dynamic> status = [];
 
+  int total = 0;
+  int finalizados = 0;
+  int andamento = 0;
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     carregarDados();
+    carregarStatus();
   }
 
   Future<void> carregarDados() async {
     setState(() => carregando = true);
-    await Future.wait([
-      carregarOperadores(),
-      carregarProjetos(),
-      carregarStatus(),
-    ]);
+    await Future.wait([carregarOperadores(), carregarProjetos()]);
     setState(() => carregando = false);
   }
+
+  /*Future<void> carregarResumo() async {
+    final response = await http.get(
+      Uri.parse(
+        "http://localhost:8080/app/listar_status_equipe.php?equipe_id=${widget.equipeId}",
+      ),
+    );
+    final data = jsonDecode(response.body);
+
+    if (data["success"] == true) {
+      setState(() {
+        total = data["total"] ?? 0;
+        finalizados = data["finalizados"] ?? 0;
+        andamento = data["andamento"] ?? 0;
+      });
+    } else {
+      print("Erro ao carregar resumo: ${response.body}");
+    }
+  }*/
 
   Future<void> carregarOperadores() async {
     try {
@@ -316,8 +335,16 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
       ),
     );
     final data = jsonDecode(response.body);
-    if (data["success"]) {
-      status = List<dynamic>.from(data["status"] ?? []);
+    if (data["success"] == true) {
+      setState(() {
+        total = data["total"] ?? 0;
+        finalizados = data["finalizados"] ?? 0;
+        andamento = data["andamento"] ?? 0;
+
+        status = List<dynamic>.from(data["status"] ?? []);
+      });
+    } else {
+      print("Erro: resposta inválida -> ${response.body}");
     }
   }
 
@@ -394,7 +421,10 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
                     tituloProjeto: p["titulo"],
                   ),
                 ),
-              );
+              ).then((_) {
+                carregarDados();
+                carregarStatus();
+              });
             },
           ),
         );
@@ -404,23 +434,92 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
 
   // ABA DE STATUS DA EQUIPE
   Widget _buildStatus() {
-    if (status.isEmpty) {
-      return const Center(child: Text("Nenhum status registrado."));
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(8),
-      itemCount: status.length,
-      itemBuilder: (context, index) {
-        final s = status[index];
-        return Card(
-          child: ListTile(
-            leading: const Icon(Icons.analytics_outlined),
-            title: Text(s["titulo"] ?? "Sem título"),
-            subtitle: Text(s["descricao"] ?? ""),
-            trailing: Text(s["data"] ?? ""),
+    // calcula valores a partir da lista `projetos`
+    final int totalLocal = total;
+    final int andamentoLocal = andamento;
+    final int finalizadosLocal = finalizados;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          // CARDS DO DASHBOARD
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatusCard("Total", totalLocal, Colors.blue),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildStatusCard(
+                  "Andamento",
+                  andamentoLocal,
+                  Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildStatusCard(
+                  "Concluídos",
+                  finalizadosLocal,
+                  Colors.green,
+                ),
+              ),
+            ],
           ),
-        );
-      },
+
+          const SizedBox(height: 20),
+
+          // LISTA DE STATUS
+          if (status.isEmpty)
+            const Text("Nenhum status registrado")
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: status.length,
+              itemBuilder: (context, index) {
+                final s = status[index];
+                return Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.analytics_outlined),
+                    title: Text(s["titulo"] ?? "Sem título"),
+                    subtitle: Text(s["descricao"] ?? ""),
+                    trailing:
+                        const SizedBox(), // não existe campo 'data' na sua tabela
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusCard(String titulo, int valor, Color cor) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      height: 110,
+      decoration: BoxDecoration(
+        color: cor.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cor.withOpacity(0.4)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(titulo, style: const TextStyle(fontSize: 14)),
+          const SizedBox(height: 8),
+          Text(
+            valor.toString(),
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: cor,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

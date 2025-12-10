@@ -30,6 +30,7 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
     _futureFluxo = _carregarFluxoCaixa();
   }
 
+  // CARREGANDO OS DADOS DAS CONTAS A PAGAR
   Future<void> carregarDadosFinanceiros() async {
     try {
       final response = await http.get(
@@ -58,22 +59,30 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
     }
   }
 
+  // FLUXO DE CAIXA
   Future<Map<String, dynamic>> _carregarFluxoCaixa() async {
     try {
+      final body = {
+        "periodo": periodoSelecionado, // ANTERIOR, ATUAL, PROXIMOS
+        "filtro_anteriores": filtroAnteriores, // 7, 15, 30 DIAS / PERSONALIZADO
+      };
+
+      // SE FOR PERIODO PERSONALIZADO
+      if (filtroAnteriores == "personalizado" && periodoPersonalizado != null) {
+        body.addAll({
+          "data_inicio": periodoPersonalizado!.start.toIso8601String(),
+          "data_fim": periodoPersonalizado!.end.toIso8601String(),
+        });
+      }
+
       final response = await http.post(
         Uri.parse("$baseUrl/fluxo_caixa.php"),
-        body: {
-          "periodo": periodoSelecionado,
-          "filtro_anteriores": filtroAnteriores,
-          if (periodoPersonalizado != null) ...{
-            "data_inicio": periodoPersonalizado!.start.toIso8601String(),
-            "data_fim": periodoPersonalizado!.end.toIso8601String(),
-          },
-        },
+        body: body,
       );
 
       if (response.statusCode == 200) {
         final dados = json.decode(response.body);
+
         return {
           "entradas": (double.tryParse(dados["entradas"].toString()) ?? 0),
           "saidas": (double.tryParse(dados["saidas"].toString()) ?? 0),
@@ -148,7 +157,7 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
       }
     }
 
-    double total = pagos + pendentes + atrasados;
+    double total = pendentes + atrasados;
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -187,9 +196,13 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
 
     final contasPendentesEAtrasadas = contas.where((c) {
       String status = c["status"].toString();
-      if (status != "Pendente" && status != "Atrasado") return false;
-      DateTime venc = DateTime.tryParse(c["vencimento"].toString()) ?? hoje;
-      return !venc.isAfter(hoje);
+      if (status == "Pendente") return true;
+
+      if (status == "Atrasado") {
+        DateTime venc = DateTime.tryParse(c["vencimento"].toString()) ?? hoje;
+        return venc.isBefore(hoje);
+      }
+      return false;
     }).toList();
 
     if (contasPendentesEAtrasadas.isEmpty) {
@@ -211,8 +224,13 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
               color: atrasada ? Colors.red : Colors.orange,
             ),
             title: Text(conta["descricao"].toString()),
-            subtitle: Text(
-              "Vencimento: ${venc.day}/${venc.month}/${venc.year}",
+
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("Fornecedor: ${conta["fornecedor"] ?? "Não Informado"}"),
+                Text("Vencimento: ${venc.day}/${venc.month}/${venc.year}"),
+              ],
             ),
             trailing: Text("R\$ ${conta["valor"]}"),
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:zeroone/pages/configuracoes_page.dart';
 import 'package:zeroone/pages/controle_estoque_page.dart';
 import 'package:zeroone/pages/engenharia_page.dart';
 import 'package:zeroone/pages/financeiro_page.dart';
@@ -167,9 +168,25 @@ class BaseScaffold extends StatelessWidget {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.ac_unit),
+              title: const Text("Clientes"),
+              onTap: () {},
+            ),
+            ListTile(
               leading: const Icon(Icons.person),
               title: const Text("Perfil"),
               onTap: () {},
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text("Configurações"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ConfiguracoesPage()),
+                );
+              },
             ),
             ListTile(
               leading: const Icon(Icons.logout),

@@ -1,472 +1,506 @@
-import 'package:flutter/material.dart';
+// arquivo: contas_relatorio.dart
+
+import 'dart:convert';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
-class ContasRelatoriosPage extends StatelessWidget {
-  const ContasRelatoriosPage({super.key});
+/// --------------------------------------------------
+/// Serviço que consome a API de relatórios
+/// --------------------------------------------------
+class RelatoriosService {
+  // Ajuste para a sua URL real (http(s)://seu-servidor/app)
+  static const String baseUrl = "http://localhost:8080/app";
+
+  static Future<Map<String, dynamic>> getResumo() async {
+    final resp = await http.get(Uri.parse("$baseUrl/resumo.php"));
+    if (resp.statusCode != 200) throw Exception("Erro ao carregar resumo");
+    final decoded = json.decode(resp.body);
+    // Garante que é um mapa e padroniza campos numéricos
+    return Map<String, dynamic>.from(decoded);
+  }
+
+  static Future<List<dynamic>> getEvolucaoMensal() async {
+    final resp = await http.get(Uri.parse("$baseUrl/evolucao.php"));
+    if (resp.statusCode != 200) throw Exception("Erro ao carregar evolução");
+    return json.decode(resp.body) as List<dynamic>;
+  }
+
+  static Future<List<dynamic>> getCategorias() async {
+    final resp = await http.get(Uri.parse("$baseUrl/categorias_relatorio.php"));
+    if (resp.statusCode != 200) throw Exception("Erro ao carregar categorias");
+    return json.decode(resp.body) as List<dynamic>;
+  }
+
+  static Future<List<dynamic>> getFornecedores() async {
+    final resp = await http.get(Uri.parse("$baseUrl/fornecedores.php"));
+    if (resp.statusCode != 200)
+      throw Exception("Erro ao carregar fornecedores");
+    return json.decode(resp.body) as List<dynamic>;
+  }
+
+  static Future<List<dynamic>> getHeatmap() async {
+    final resp = await http.get(Uri.parse("$baseUrl/heatmap.php"));
+    if (resp.statusCode != 200) throw Exception("Erro ao carregar heatmap");
+    return json.decode(resp.body) as List<dynamic>;
+  }
+
+  static Future<List<dynamic>> getFluxoFuturo() async {
+    final resp = await http.get(Uri.parse("$baseUrl/fluxo_futuro.php"));
+    if (resp.statusCode != 200)
+      throw Exception("Erro ao carregar fluxo futuro");
+    return json.decode(resp.body) as List<dynamic>;
+  }
+}
+
+/// --------------------------------------------------
+/// Widgets de gráficos (consomem RelatoriosService)
+/// --------------------------------------------------
+//=============== GRAFICO DE STATUS ==================//
+class GraficoStatusPagamento extends StatelessWidget {
+  const GraficoStatusPagamento({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 5,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text("Relatórios Financeiros"),
-          bottom: const TabBar(
-            isScrollable: true,
-            tabs: [
-              Tab(text: "Resumo"),
-              Tab(text: "Evolução"),
-              Tab(text: "Custos"),
-              Tab(text: "Fornecedores"),
-              Tab(text: "Auditoria"),
-            ],
-          ),
-        ),
-        body: const TabBarView(
-          children: [
-            AbaResumo(),
-            AbaEvolucao(),
-            AbaCustos(),
-            AbaFornecedores(),
-            AbaAuditoria(),
-          ],
-        ),
-      ),
+    return FutureBuilder<Map<String, dynamic>>(
+      future: RelatoriosService.getResumo(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text("Erro: ${snapshot.error}"));
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: Text("Sem dados"));
+        }
+
+        final resumo = snapshot.data!;
+        double pagas = _toDouble(resumo["pagas"]);
+        double pendentes = _toDouble(resumo["pendentes"]);
+        double atrasadas = _toDouble(resumo["atrasadas"]);
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            double largura = constraints.maxWidth;
+            double barWidth = (largura * 0.12).clamp(16.0, 32.0);
+            double fontSize = (largura * 0.04).clamp(10.0, 18.0);
+
+            return BarChart(
+              // ANIMAÇÃO (correta: no construtor do BarChart)
+              BarChartData(
+                barTouchData: BarTouchData(enabled: false),
+                barGroups: [
+                  BarChartGroupData(
+                    x: 0,
+                    barRods: [
+                      BarChartRodData(
+                        toY: pagas,
+                        color: Colors.green,
+                        borderRadius: BorderRadius.zero,
+                        width: barWidth,
+                      ),
+                    ],
+                  ),
+                  BarChartGroupData(
+                    x: 1,
+                    barRods: [
+                      BarChartRodData(
+                        toY: pendentes,
+                        color: Colors.orange,
+                        borderRadius: BorderRadius.zero,
+                        width: barWidth,
+                      ),
+                    ],
+                  ),
+                  BarChartGroupData(
+                    x: 2,
+                    barRods: [
+                      BarChartRodData(
+                        toY: atrasadas,
+                        color: Colors.red,
+                        borderRadius: BorderRadius.zero,
+                        width: barWidth,
+                      ),
+                    ],
+                  ),
+                ],
+
+                titlesData: FlTitlesData(
+                  topTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 40,
+                      getTitlesWidget: (value, meta) {
+                        final estilo = TextStyle(
+                          fontSize: fontSize,
+                          fontWeight: FontWeight.w500,
+                        );
+                        switch (value.toInt()) {
+                          case 0:
+                            return Text("Pagas", style: estilo);
+                          case 1:
+                            return Text("Pendentes", style: estilo);
+                          case 2:
+                            return Text("Atrasadas", style: estilo);
+                          default:
+                            return const SizedBox.shrink();
+                        }
+                      },
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 40,
+                      interval: 1,
+                      getTitlesWidget: (value, meta) {
+                        if (value % 1 == 0) {
+                          return Text(
+                            value.toInt().toString(),
+                            style: TextStyle(fontSize: fontSize),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                  ),
+                ),
+
+                borderData: FlBorderData(show: false),
+                gridData: FlGridData(
+                  show: true,
+                  horizontalInterval: 1,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    strokeWidth: 0.6,
+                    color: Colors.grey.withOpacity(0.3),
+                  ),
+                ),
+              ),
+              // coloque a animação AQUI
+              swapAnimationDuration: const Duration(milliseconds: 900),
+              swapAnimationCurve: Curves.easeOutCubic,
+            );
+          },
+        );
+      },
     );
   }
 }
 
-//
-// ======================================================
-// 1️⃣ ABA - RESUMO
-// ======================================================
-//
-
-class AbaResumo extends StatelessWidget {
-  const AbaResumo({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return _buildScroll([
-      _titulo("Resumo Financeiro"),
-      _card(const GraficoStatusPagamentos()), // gráfico 1
-    ]);
-  }
-}
-
-//
-// ======================================================
-// 2️⃣ ABA - EVOLUÇÃO
-// ======================================================
-//
-
-class AbaEvolucao extends StatelessWidget {
-  const AbaEvolucao({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return _buildScroll([
-      _titulo("Evolução Mensal"),
-      _card(const GraficoEvolucaoMensal()), // gráfico 2
-
-      const SizedBox(height: 16),
-      _titulo("Fluxo Futuro de Pagamentos"),
-      _card(const GraficoFluxoFuturo()), // gráfico 5
-
-      const SizedBox(height: 16),
-      _titulo("Status ao Longo dos Meses"),
-      _card(const GraficoStatusPorMes()), // gráfico 6
-    ]);
-  }
-}
-
-//
-// ======================================================
-// 3️⃣ ABA - CUSTOS
-// ======================================================
-//
-
-class AbaCustos extends StatelessWidget {
-  const AbaCustos({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return _buildScroll([
-      _titulo("Distribuição por Categoria"),
-      _card(const GraficoCategorias()), // gráfico 3
-
-      const SizedBox(height: 16),
-      _titulo("Pareto - Itens Críticos"),
-      _card(const GraficoPareto()), // gráfico 8
-    ]);
-  }
-}
-
-//
-// ======================================================
-// 4️⃣ ABA - FORNECEDORES
-// ======================================================
-//
-
-class AbaFornecedores extends StatelessWidget {
-  const AbaFornecedores({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return _buildScroll([
-      _titulo("Gastos por Fornecedor"),
-      _card(const GraficoFornecedores()), // gráfico 4
-    ]);
-  }
-}
-
-//
-// ======================================================
-// 5️⃣ ABA - AUDITORIA
-// ======================================================
-//
-
-class AbaAuditoria extends StatelessWidget {
-  const AbaAuditoria({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return _buildScroll([
-      _titulo("Concentração de Vencimentos"),
-      _card(const GraficoHeatmapVencimentos()), // gráfico 7
-    ]);
-  }
-}
-
-//
-// ======================================================
-// COMPONENTES REUTILIZÁVEIS
-// ======================================================
-//
-
-Widget _buildScroll(List<Widget> children) {
-  return SingleChildScrollView(
-    padding: const EdgeInsets.all(16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: children,
-    ),
-  );
-}
-
-Widget _titulo(String t) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Text(
-      t,
-      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-    ),
-  );
-}
-
-Widget _card(Widget child) {
-  return Card(
-    elevation: 3,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: SizedBox(height: 260, child: child),
-    ),
-  );
-}
-
-//
-// ======================================================
-// WIDGETS DE GRÁFICO (PLACEHOLDERS)
-// Substitua pelos widgets do fl_chart
-// ======================================================
-//
-
-class GraficoStatusPagamentos extends StatelessWidget {
-  const GraficoStatusPagamentos({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return BarChart(
-      BarChartData(
-        barGroups: [
-          BarChartGroupData(
-            x: 0,
-            barRods: [BarChartRodData(toY: 40, color: Colors.green)],
-            showingTooltipIndicators: [0],
-          ),
-          BarChartGroupData(
-            x: 1,
-            barRods: [BarChartRodData(toY: 25, color: Colors.orange)],
-            showingTooltipIndicators: [0],
-          ),
-          BarChartGroupData(
-            x: 2,
-            barRods: [BarChartRodData(toY: 10, color: Colors.red)],
-            showingTooltipIndicators: [0],
-          ),
-        ],
-        titlesData: FlTitlesData(
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
-                switch (value.toInt()) {
-                  case 0:
-                    return const Text("Pagas");
-                  case 1:
-                    return const Text("Pendentes");
-                  case 2:
-                    return const Text("Atrasadas");
-                }
-                return const Text("");
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
+//=============== GRAFICO DE EVOLUÇÃO MENSAL ==================//
 class GraficoEvolucaoMensal extends StatelessWidget {
   const GraficoEvolucaoMensal({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return LineChart(
-      LineChartData(
-        lineBarsData: [
-          LineChartBarData(
-            isCurved: true,
-            spots: const [
-              FlSpot(0, 10),
-              FlSpot(1, 12),
-              FlSpot(2, 18),
-              FlSpot(3, 14),
-              FlSpot(4, 20),
-              FlSpot(5, 26),
-            ],
-            barWidth: 4,
-            color: Colors.blue,
-            dotData: const FlDotData(show: true),
-          ),
-        ],
-      ),
-    );
+  static const List<String> nomesMeses = [
+    "", // índice zero ignorado
+    "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+    "Jul", "Ago", "Set", "Out", "Nov", "Dez",
+  ];
+
+  double _toDouble(dynamic v) {
+    return double.tryParse(v.toString()) ?? 0.0;
   }
-}
 
-class GraficoFluxoFuturo extends StatelessWidget {
-  const GraficoFluxoFuturo({super.key});
+  int? _mesToInt(dynamic mes) {
+    final num = int.tryParse(mes.toString());
+    if (num != null && num >= 1 && num <= 12) return num;
+
+    final regex = RegExp(r'(\d{1,2})');
+    final match = regex.firstMatch(mes.toString());
+    if (match != null) {
+      final m = int.tryParse(match.group(1)!);
+      if (m != null && m >= 1 && m <= 12) return m;
+    }
+
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return LineChart(
-      LineChartData(
-        minY: 0,
-        maxY: 30,
-        lineBarsData: [
-          LineChartBarData(
-            isCurved: true,
-            spots: const [
-              FlSpot(0, 8),
-              FlSpot(1, 12),
-              FlSpot(2, 18),
-              FlSpot(3, 10),
-              FlSpot(4, 22),
-            ],
-            color: Colors.blue,
-            barWidth: 4,
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                colors: [Colors.blue.withOpacity(0.3), Colors.transparent],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+    return FutureBuilder<List<dynamic>>(
+      future: RelatoriosService.getEvolucaoMensal(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text("Erro: ${snapshot.error}"));
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text("Sem dados"));
+        }
+
+        final lista = snapshot.data!;
+        final spots = <FlSpot>[];
+        double maxY = 0;
+
+        for (var e in lista) {
+          if (e is Map && e.containsKey("mes") && e.containsKey("total")) {
+            final mesNum = _mesToInt(e["mes"]);
+            final valor = _toDouble(e["total"]);
+
+            if (mesNum != null) {
+              spots.add(FlSpot(mesNum.toDouble(), valor));
+              if (valor > maxY) maxY = valor;
+            }
+          }
+        }
+
+        // 🔥 define o máximo ajustado para múltiplo de 10.000
+        const intervalo = 10000.0;
+        double maxYajustado = ((maxY / intervalo).ceil() * intervalo);
+
+        if (maxYajustado == 0) {
+          maxYajustado = intervalo; // evita gráfico vazio
+        }
+
+        return LineChart(
+          LineChartData(
+            minX: 1,
+            maxX: 12,
+            minY: 0,
+            maxY: maxYajustado,
+
+            lineBarsData: [
+              LineChartBarData(
+                spots: spots,
+                isCurved: true,
+                barWidth: 3,
+                color: Colors.blue,
+                dotData: FlDotData(show: false),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+            ],
 
-class GraficoStatusPorMes extends StatelessWidget {
-  const GraficoStatusPorMes({super.key});
+            titlesData: FlTitlesData(
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 32,
+                  interval: 1, // 🔥 força exibir somente valores inteiros
+                  getTitlesWidget: (value, meta) {
+                    final mesIndex = value.toInt();
 
-  @override
-  Widget build(BuildContext context) {
-    return BarChart(
-      BarChartData(
-        barGroups: [
-          _grupo(1, 10, 6, 2),
-          _grupo(2, 14, 4, 3),
-          _grupo(3, 18, 7, 1),
-        ],
-      ),
-    );
-  }
+                    // 🔥 só mostra se for mês de 1 a 12
+                    if (mesIndex < 1 || mesIndex > 12 || value % 1 != 0) {
+                      return const SizedBox.shrink();
+                    }
 
-  BarChartGroupData _grupo(int x, double pagas, double pend, double atr) {
-    return BarChartGroupData(
-      x: x,
-      barRods: [
-        BarChartRodData(
-          toY: pagas + pend + atr,
-          rodStackItems: [
-            BarChartRodStackItem(0, pagas, Colors.green),
-            BarChartRodStackItem(pagas, pagas + pend, Colors.orange),
-            BarChartRodStackItem(pagas + pend, pagas + pend + atr, Colors.red),
-          ],
-        ),
-      ],
-    );
-  }
-}
+                    return Text(
+                      nomesMeses[mesIndex],
+                      style: const TextStyle(fontSize: 12),
+                    );
+                  },
+                ),
+              ),
 
-class GraficoCategorias extends StatelessWidget {
-  const GraficoCategorias({super.key});
+              // 🔥 EIXO Y SUBINDO DE 10.000 EM 10.000
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 60,
+                  interval: intervalo,
+                  getTitlesWidget: (value, meta) {
+                    return Text(
+                      value.toInt().toString(),
+                      style: const TextStyle(fontSize: 11),
+                    );
+                  },
+                ),
+              ),
 
-  @override
-  Widget build(BuildContext context) {
-    return PieChart(
-      PieChartData(
-        centerSpaceRadius: 55,
-        sections: [
-          PieChartSectionData(value: 40, title: "Módulos", color: Colors.blue),
-          PieChartSectionData(
-            value: 25,
-            title: "Inversores",
-            color: Colors.green,
-          ),
-          PieChartSectionData(
-            value: 15,
-            title: "Estrutura",
-            color: Colors.orange,
-          ),
-          PieChartSectionData(value: 10, title: "Mão Obra", color: Colors.red),
-          PieChartSectionData(value: 10, title: "Frete", color: Colors.purple),
-        ],
-      ),
-    );
-  }
-}
-
-class GraficoPareto extends StatelessWidget {
-  const GraficoPareto({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return BarChart(
-      BarChartData(
-        barGroups: [
-          BarChartGroupData(
-            x: 0,
-            barRods: [BarChartRodData(toY: 40, color: Colors.blue)],
-          ),
-          BarChartGroupData(
-            x: 1,
-            barRods: [BarChartRodData(toY: 20, color: Colors.blue)],
-          ),
-          BarChartGroupData(
-            x: 2,
-            barRods: [BarChartRodData(toY: 15, color: Colors.blue)],
-          ),
-          BarChartGroupData(
-            x: 3,
-            barRods: [BarChartRodData(toY: 10, color: Colors.blue)],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class GraficoFornecedores extends StatelessWidget {
-  const GraficoFornecedores({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.center,
-        barGroups: [
-          _bar("SolarTech", 40000, 0),
-          _bar("Brasil Solar", 30000, 1),
-          _bar("EcoSun", 20000, 2),
-        ],
-        titlesData: FlTitlesData(
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (index, meta) {
-                switch (index.toInt()) {
-                  case 0:
-                    return const Text("SolarTech");
-                  case 1:
-                    return const Text("Brasil Solar");
-                  case 2:
-                    return const Text("EcoSun");
-                }
-                return const Text("");
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  BarChartGroupData _bar(String name, double value, int index) {
-    return BarChartGroupData(
-      x: index,
-      barRods: [
-        BarChartRodData(toY: value / 1000, width: 18, color: Colors.teal),
-      ],
-    );
-  }
-}
-
-class GraficoHeatmapVencimentos extends StatelessWidget {
-  const GraficoHeatmapVencimentos({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final List<List<int>> valores = [
-      [2, 5, 3, 1],
-      [4, 8, 2, 0],
-      [1, 3, 6, 2],
-    ];
-
-    return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: valores.length * 4,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        childAspectRatio: 1,
-      ),
-      itemBuilder: (context, index) {
-        int linha = index ~/ 4;
-        int coluna = index % 4;
-        int valor = valores[linha][coluna];
-
-        return Container(
-          margin: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: Colors.red.withOpacity(valor / 10),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Center(
-            child: Text(
-              valor.toString(),
-              style: const TextStyle(color: Colors.white),
+              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
             ),
           ),
         );
       },
     );
   }
+}
+
+//=============== GRAFICO DE CATEGORIAS ==================//
+class GraficoCategorias extends StatelessWidget {
+  const GraficoCategorias({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<dynamic>>(
+      future: RelatoriosService.getCategorias(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text("Erro: ${snapshot.error}"));
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text("Sem dados"));
+        }
+
+        final lista = snapshot.data!;
+        final sections = lista.asMap().entries.map<PieChartSectionData>((
+          entry,
+        ) {
+          final e = entry.value;
+          final value = _toDouble(e["valor"]);
+          final title = (e["categoria"] ?? "").toString();
+          final color = Colors.primaries[entry.key % Colors.primaries.length];
+          return PieChartSectionData(value: value, title: title, color: color);
+        }).toList();
+
+        return PieChart(
+          PieChartData(centerSpaceRadius: 55, sections: sections),
+        );
+      },
+    );
+  }
+}
+
+//=============== GRAFICO DE FORNECEDORES ==================//
+class GraficoFornecedores extends StatelessWidget {
+  const GraficoFornecedores({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<dynamic>>(
+      future: RelatoriosService.getFornecedores(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text("Erro: ${snapshot.error}"));
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text("Sem dados"));
+        }
+
+        final dados = snapshot.data!;
+        final groups = dados.asMap().entries.map<BarChartGroupData>((entry) {
+          final e = entry.value;
+          final index = entry.key;
+          final total = _toDouble(e["total"]);
+          return BarChartGroupData(
+            x: index,
+            barRods: [
+              BarChartRodData(toY: total / 1000, width: 18, color: Colors.teal),
+            ],
+          );
+        }).toList();
+
+        return BarChart(BarChartData(barGroups: groups));
+      },
+    );
+  }
+}
+
+//=============== GRAFICO DE HEATMAP ==================//
+class GraficoHeatmapVencimentos extends StatelessWidget {
+  const GraficoHeatmapVencimentos({super.key});
+
+  static const colunas = [
+    "Início do Mês 1-10",
+    "Meio do Mês 11-20",
+    "Fim do Mês 21–31",
+  ];
+  static const linhas = ["Vencimentos"];
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<dynamic>>(
+      future: RelatoriosService.getHeatmap(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text("Erro: ${snapshot.error}"));
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text("Sem dados"));
+        }
+
+        final matriz = (snapshot.data! as List)
+            .map<List<int>>(
+              (linha) => List<int>.from(linha.map((v) => _toDouble(v).toInt())),
+            )
+            .toList();
+
+        final rows = matriz.length;
+        final cols = matriz[0].length;
+
+        return Column(
+          children: [
+            // CABEÇALHO DAS COLUNAS
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: colunas.map((e) {
+                return SizedBox(
+                  width: 70,
+                  child: Center(
+                    child: Text(
+                      e,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+
+            const SizedBox(height: 8),
+
+            // LINHA ÚNICA COM O HEATMAP
+            SizedBox(
+              height: 80,
+              child: Row(
+                children: List.generate(cols, (c) {
+                  final valor = matriz[0][c];
+                  final intensidade = (valor / 10).clamp(0.0, 1.0);
+
+                  return Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(intensidade),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Text(
+                          valor.toString(),
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+
+            // NOME DA LINHA
+            const SizedBox(height: 4),
+            const Text(
+              "Vencimentos",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+double _toDouble(dynamic v) {
+  return double.tryParse(v.toString()) ?? 0.0;
 }

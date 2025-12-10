@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:zeroone/pages/pagina_inicial.dart';
 import 'auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:html' as html;
 
-void main() {
+void main() async {
+  bool modoNoturno = false;
+  double tamanhoFonte = 1.0;
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+
+  modoNoturno = prefs.getBool("modoNotuno") ?? false;
+  tamanhoFonte = prefs.getDouble("TamanhoFonte") ?? 1.0;
+
   runApp(const MyApp());
 }
 

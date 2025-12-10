@@ -37,11 +37,112 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
 
   List<Map<String, dynamic>> contas = [];
   List<Map<String, dynamic>> contasFiltradas = [];
+  List<String> listaProjetos = [];
+  List<String> listaCategorias = [];
+  List<String> listaFornecedores = [];
 
   @override
   void initState() {
     super.initState();
     _carregarContas();
+    _carregarProjetos();
+    _carregarCategorias();
+    _carregarFornecedores();
+  }
+
+  Future<void> _carregarFornecedores() async {
+    final res = await http.get(
+      Uri.parse("http://localhost:8080/app/listar_projetos.php"),
+    );
+    final data = jsonDecode(res.body);
+
+    setState(() {
+      listaFornecedores = List<String>.from(
+        data.map((f) => f["nome"].toString()),
+      );
+    });
+  }
+
+  Future<void> _carregarCategorias() async {
+    final res = await http.get(
+      Uri.parse("http://localhost:8080/app/listar_projetos.php"),
+    );
+    final data = jsonDecode(res.body);
+
+    setState(() {
+      listaFornecedores = List<String>.from(
+        data.map((f) => f["nome"].toString()),
+      );
+    });
+  }
+
+  Future<void> _carregarProjetos() async {
+    try {
+      final res = await http.get(
+        Uri.parse("http://localhost:8080/app/listar_projetos.php"),
+      );
+      if (res.statusCode != 200) {
+        debugPrint('Erro ao buscar projetos: ${res.statusCode}');
+        return;
+      }
+
+      final body = res.body;
+      final parsed = jsonDecode(body);
+
+      // parsed pode ser:
+      // 1) uma lista direta: [ { "descricao": "..."} , ... ]
+      // 2) um objeto com chave "dados" ou "projetos": { "dados": [...]} ou {"projetos":[...]}
+      List<dynamic> listaRaw = [];
+
+      if (parsed is List) {
+        listaRaw = parsed;
+      } else if (parsed is Map) {
+        if (parsed.containsKey('dados') && parsed['dados'] is List) {
+          listaRaw = parsed['dados'];
+        } else if (parsed.containsKey('projetos') &&
+            parsed['projetos'] is List) {
+          listaRaw = parsed['projetos'];
+        } else {
+          // tenta extrair o primeiro item que seja lista
+          final firstList = parsed.values.firstWhere(
+            (v) => v is List,
+            orElse: () => null,
+          );
+          if (firstList is List) listaRaw = firstList;
+        }
+      }
+
+      final novos = listaRaw
+          .map<String>((p) {
+            try {
+              if (p is Map && p.containsKey('descricao'))
+                return p['descricao'].toString();
+              if (p is Map && p.containsKey('nome'))
+                return p['nome'].toString();
+              // se p for string já retorna ela
+              if (p is String) return p;
+              // fallback: stringify
+              return p.toString();
+            } catch (e) {
+              return '';
+            }
+          })
+          .where((s) => s.isNotEmpty)
+          .toList();
+
+      if (!mounted) return; // evitar setState se o widget não existe mais
+      setState(() {
+        listaProjetos = novos;
+      });
+    } catch (e, st) {
+      debugPrint('Erro _carregarProjetos: $e\n$st');
+      // manter lista vazia em caso de falha
+      if (mounted) {
+        setState(() {
+          listaProjetos = [];
+        });
+      }
+    }
   }
 
   // =================== LISTAR =====================
@@ -300,10 +401,11 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
   // Formulário para adicionar conta (com recorrencia e parcelas)
   void _abrirFormularioAdicionar() {
     final descricaoCtrl = TextEditingController();
-    final fornecedorCtrl = TextEditingController();
     final valorCtrl = TextEditingController();
-    final categoriaCtrl = TextEditingController();
-    final projetoCtrl = TextEditingController();
+    String? fornecedorSel;
+    String? categoriaSel;
+    String? projetoSel;
+
     String recorrencia = "nenhuma";
     int parcelas = 1;
     DateTime? vencimento;
@@ -314,88 +416,143 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
         builder: (ctx, setStateDialog) {
           return AlertDialog(
             title: const Text("Adicionar Conta"),
-            content: SingleChildScrollView(
-              child: Column(
-                children: [
-                  TextField(
-                    controller: descricaoCtrl,
-                    decoration: const InputDecoration(labelText: "Descrição"),
-                  ),
-                  TextField(
-                    controller: fornecedorCtrl,
-                    decoration: const InputDecoration(labelText: "Fornecedor"),
-                  ),
-                  TextField(
-                    controller: categoriaCtrl,
-                    decoration: const InputDecoration(labelText: "Categoria"),
-                  ),
-                  TextField(
-                    controller: projetoCtrl,
-                    decoration: const InputDecoration(
-                      labelText: "Projeto/Centro de Custo",
+            contentPadding: const EdgeInsets.all(20),
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 40,
+              vertical: 30,
+            ),
+            content: SizedBox(
+              width: 450, // 🔥 POPUP MAIOR
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: descricaoCtrl,
+                      decoration: const InputDecoration(labelText: "Descrição"),
                     ),
-                  ),
-                  TextField(
-                    controller: valorCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: "Valor (ex: 350.75)",
+
+                    const SizedBox(height: 12),
+
+                    // 🔥 FORNECEDORES (DROPDOWN)
+                    DropdownButtonFormField<String>(
+                      value: fornecedorSel,
+                      items: listaFornecedores
+                          .map(
+                            (f) => DropdownMenuItem(value: f, child: Text(f)),
+                          )
+                          .toList(),
+                      onChanged: (v) => setStateDialog(() => fornecedorSel = v),
+                      decoration: const InputDecoration(
+                        labelText: "Fornecedor",
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    value: recorrencia,
-                    items: const [
-                      DropdownMenuItem(
-                        value: "nenhuma",
-                        child: Text("Não recorrente"),
+
+                    const SizedBox(height: 12),
+
+                    // 🔥 CATEGORIAS FIXAS
+                    DropdownButtonFormField<String>(
+                      value: categoriaSel,
+                      items: listaCategorias
+                          .map(
+                            (c) => DropdownMenuItem(value: c, child: Text(c)),
+                          )
+                          .toList(),
+                      onChanged: (v) => setStateDialog(() => categoriaSel = v),
+                      decoration: const InputDecoration(labelText: "Categoria"),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // 🔥 PROJETOS — PEGO DO BANCO
+                    DropdownButtonFormField<String>(
+                      value: projetoSel,
+                      items: listaProjetos
+                          .map(
+                            (p) => DropdownMenuItem(value: p, child: Text(p)),
+                          )
+                          .toList(),
+                      onChanged: (v) => setStateDialog(() => projetoSel = v),
+                      decoration: const InputDecoration(
+                        labelText: "Projeto / Centro de Custo",
                       ),
-                      DropdownMenuItem(value: "mensal", child: Text("Mensal")),
-                      DropdownMenuItem(
-                        value: "semanal",
-                        child: Text("Semanal"),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    TextField(
+                      controller: valorCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: "Valor (ex: 350.75)",
                       ),
-                      DropdownMenuItem(value: "anual", child: Text("Anual")),
-                    ],
-                    onChanged: (v) =>
-                        setStateDialog(() => recorrencia = v ?? "nenhuma"),
-                    decoration: const InputDecoration(labelText: "Recorrência"),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Text("Parcelas: "),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextFormField(
-                          initialValue: parcelas.toString(),
-                          keyboardType: TextInputType.number,
-                          onChanged: (v) {
-                            final val = int.tryParse(v) ?? 1;
-                            setStateDialog(() => parcelas = val);
-                          },
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // 🔥 RECORRÊNCIA
+                    DropdownButtonFormField<String>(
+                      value: recorrencia,
+                      items: const [
+                        DropdownMenuItem(
+                          value: "nenhuma",
+                          child: Text("Não recorrente"),
                         ),
+                        DropdownMenuItem(
+                          value: "mensal",
+                          child: Text("Mensal"),
+                        ),
+                        DropdownMenuItem(
+                          value: "semanal",
+                          child: Text("Semanal"),
+                        ),
+                        DropdownMenuItem(value: "anual", child: Text("Anual")),
+                      ],
+                      onChanged: (v) =>
+                          setStateDialog(() => recorrencia = v ?? "nenhuma"),
+                      decoration: const InputDecoration(
+                        labelText: "Recorrência",
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: () async {
-                      final dt = await showDatePicker(
-                        context: ctx,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2100),
-                      );
-                      if (dt != null) setStateDialog(() => vencimento = dt);
-                    },
-                    child: Text(
-                      vencimento == null
-                          ? "Selecionar Vencimento"
-                          : DateFormat("yyyy/MM/dd").format(vencimento!),
                     ),
-                  ),
-                ],
+
+                    const SizedBox(height: 12),
+
+                    Row(
+                      children: [
+                        const Text("Parcelas: "),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextFormField(
+                            initialValue: parcelas.toString(),
+                            keyboardType: TextInputType.number,
+                            onChanged: (v) {
+                              final val = int.tryParse(v) ?? 1;
+                              setStateDialog(() => parcelas = val);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    ElevatedButton(
+                      onPressed: () async {
+                        final dt = await showDatePicker(
+                          context: ctx,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2100),
+                        );
+                        if (dt != null) setStateDialog(() => vencimento = dt);
+                      },
+                      child: Text(
+                        vencimento == null
+                            ? "Selecionar Vencimento"
+                            : DateFormat("yyyy/MM/dd").format(vencimento!),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             actions: [
@@ -413,17 +570,19 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                     );
                     return;
                   }
+
                   final conta = {
                     "descricao": descricaoCtrl.text,
-                    "fornecedor": fornecedorCtrl.text,
-                    "categoria": categoriaCtrl.text,
-                    "projeto": projetoCtrl.text,
+                    "fornecedor": fornecedorSel ?? "",
+                    "categoria": categoriaSel ?? "",
+                    "projeto": projetoSel ?? "",
                     "valor": double.tryParse(valorCtrl.text) ?? 0,
                     "status": "Pendente",
                     "vencimento": DateFormat("yyyy-MM-dd").format(vencimento!),
                     "recorrencia": recorrencia,
                     "parcelas": parcelas,
                   };
+
                   _adicionarConta(conta);
                 },
                 child: const Text("Salvar"),

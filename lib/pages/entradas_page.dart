@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:zeroone/pages/contas_relatorios_page.dart';
-import 'contas_visao_geral.dart';
-import 'contas_listagem.dart';
-import 'contas_relatorios.dart';
-import 'contas_analises.dart';
+import 'package:zeroone/pages/entradas_listagem_page.dart';
+import 'package:zeroone/pages/entradas_relatorios_page.dart';
+import 'package:zeroone/pages/entradas_visao_geral_page.dart';
 
-class ContasPagarPage extends StatelessWidget {
-  const ContasPagarPage({super.key});
+class EntradasPage extends StatelessWidget {
+  const EntradasPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Contas a Pagar")),
+      appBar: AppBar(title: const Text("Entradas")),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: GridView.count(
@@ -20,38 +18,40 @@ class ContasPagarPage extends StatelessWidget {
           crossAxisSpacing: 16,
           children: [
             _FinanceiroCard(
-              icon: Icons.dashboard,
+              icon: Icons.dashboard_outlined,
               label: "Visão Geral",
               color: Colors.blue,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const ContasVisaoGeralPage(),
+                    builder: (_) => const EntradasVisaoGeralPage(),
                   ),
                 );
               },
             ),
             _FinanceiroCard(
-              icon: Icons.list_alt,
-              label: "Listagem de Contas",
+              icon: Icons.list_alt_outlined,
+              label: "Listagem de Entradas",
               color: Colors.green,
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const ContasListagemPage()),
+                  MaterialPageRoute(
+                    builder: (_) => const EntradasListagemPage(),
+                  ),
                 );
               },
             ),
             _FinanceiroCard(
-              icon: Icons.bar_chart,
-              label: "Relatórios e Análises Financeiras",
+              icon: Icons.bar_chart_outlined,
+              label: "Relatórios e Análises",
               color: Colors.orange,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const ContasRelatoriosPage(),
+                    builder: (_) => const EntradasRelatoriosPage(),
                   ),
                 );
               },

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
@@ -7,6 +8,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:zeroone/pages/financeiro_page.dart';
 import 'monitoramento_clientes_page.dart';
 import 'menu_lateral.dart';
+
+const Color corPrincipal = Color(0xFFBBFB04);
 
 class HomePage extends StatefulWidget {
   final String nomeUsuario;
@@ -26,7 +29,6 @@ class _HomePageState extends State<HomePage> {
   String _status = "Verificando localização...";
   Position? _posicao;
 
-  // Dados simulados estilo "bolsa de valores"
   List<Map<String, dynamic>> painelSolar = [
     {"nome": "Consumo Atual", "valor": 350, "unidade": "kWh", "mudanca": 2.5},
     {"nome": "Geração Atual", "valor": 420, "unidade": "kWh", "mudanca": -1.2},
@@ -58,9 +60,7 @@ class _HomePageState extends State<HomePage> {
       }
 
       if (permissao == LocationPermission.deniedForever) {
-        setState(
-          () => _status = "Permissão de localização permanentemente negada",
-        );
+        setState(() => _status = "Permissão permanentemente negada");
         return;
       }
 
@@ -69,28 +69,9 @@ class _HomePageState extends State<HomePage> {
       );
 
       _posicao = posicao;
-
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        posicao.latitude,
-        posicao.longitude,
-      );
-
-      if (placemarks.isNotEmpty) {
-        String estado = placemarks.first.administrativeArea ?? "";
-        setState(() {
-          if (estado.toLowerCase().contains("pará") ||
-              estado.toLowerCase().contains("para")) {
-            _status = "✅ Você está no Pará!";
-          } else {
-            _status =
-                "❌ Acesso permitido apenas no Pará.\nLocal detectado: $estado";
-          }
-        });
-      } else {
-        setState(() => _status = "Não foi possível determinar o endereço.");
-      }
+      setState(() {});
     } catch (e) {
-      setState(() => _status = "Erro ao obter localização: $e");
+      setState(() => _status = "Erro ao obter localização");
     }
   }
 
@@ -99,17 +80,11 @@ class _HomePageState extends State<HomePage> {
     final alturaTela = MediaQuery.of(context).size.height;
 
     return BaseScaffold(
-      titulo: "Bem-vindo, ${widget.nomeUsuario}",
+      titulo: "PhaseOne",
       nomeUsuario: widget.nomeUsuario,
       emailUsuario: widget.emailUsuario,
       corpo: _posicao == null
-          ? Center(
-              child: Text(
-                _status,
-                style: const TextStyle(fontSize: 18),
-                textAlign: TextAlign.center,
-              ),
-            )
+          ? Center(child: Text(_status))
           : Column(
               children: [
                 Expanded(
@@ -124,8 +99,9 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       TileLayer(
                         urlTemplate:
-                            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                        subdomains: const ['a', 'b', 'c'],
+                            "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+                        subdomains: const ['a', 'b', 'c', 'd'],
+                        userAgentPackageName: 'com.zeroone.app',
                       ),
                       MarkerLayer(
                         markers: [
@@ -134,13 +110,9 @@ class _HomePageState extends State<HomePage> {
                               _posicao!.latitude,
                               _posicao!.longitude,
                             ),
-                            width: 80,
-                            height: 80,
-                            child: const Icon(
-                              Icons.location_pin,
-                              color: Colors.red,
-                              size: 40,
-                            ),
+                            width: 90,
+                            height: 90,
+                            child: const NeonMarker(),
                           ),
                         ],
                       ),
@@ -168,45 +140,15 @@ class _HomePageState extends State<HomePage> {
                           itemCount: painelSolar.length,
                           itemBuilder: (context, index) {
                             final item = painelSolar[index];
-
-                            if (item["nome"] == "Sistema") {
-                              final bool online = item["valor"] == "Online";
-                              return Container(
-                                margin: const EdgeInsets.symmetric(vertical: 4),
-                                child: ElevatedButton(
-                                  onPressed: () {},
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: online
-                                        ? Colors.green
-                                        : Colors.red,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    online ? "ONLINE" : "OFFLINE",
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }
-
-                            final bool positivo = item["mudanca"] >= 0;
+                            final positivo = item["mudanca"] >= 0;
                             final cor = positivo ? Colors.green : Colors.red;
-                            final String sinal = positivo ? "+" : "";
+
                             return Card(
                               color: Colors.grey[900],
-                              elevation: 2,
                               child: ListTile(
                                 title: Text(
                                   item["nome"],
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                  ),
+                                  style: const TextStyle(color: Colors.white),
                                 ),
                                 trailing: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -217,18 +159,15 @@ class _HomePageState extends State<HomePage> {
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 14,
                                       ),
                                     ),
-                                    if (item["mudanca"] != 0)
-                                      Text(
-                                        "$sinal${item["mudanca"]}%",
-                                        style: TextStyle(
-                                          color: cor,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
+                                    Text(
+                                      "${positivo ? "+" : ""}${item["mudanca"]}%",
+                                      style: TextStyle(
+                                        color: cor,
+                                        fontSize: 12,
                                       ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -241,6 +180,74 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
+    );
+  }
+}
+
+/// 🔥 MARCADOR NEON COM PULSO (MONITORAMENTO)
+class NeonMarker extends StatefulWidget {
+  const NeonMarker({super.key});
+
+  @override
+  State<NeonMarker> createState() => _NeonMarkerState();
+}
+
+class _NeonMarkerState extends State<NeonMarker>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (_, __) {
+        final pulse = _controller.value;
+
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: 50 + pulse * 20,
+              height: 50 + pulse * 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: corPrincipal.withOpacity(0.2 * (1 - pulse)),
+              ),
+            ),
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: corPrincipal,
+                boxShadow: [
+                  BoxShadow(
+                    color: corPrincipal.withOpacity(0.9),
+                    blurRadius: 20,
+                    spreadRadius: 6,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.bolt, color: Colors.black, size: 16),
+          ],
+        );
+      },
     );
   }
 }

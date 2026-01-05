@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+const Color corPrincipal = Color(0xFFBBFB04);
+
 class GestaoProjetosPage extends StatefulWidget {
   const GestaoProjetosPage({super.key});
 
@@ -9,14 +11,12 @@ class GestaoProjetosPage extends StatefulWidget {
 }
 
 class _GestaoProjetosPageState extends State<GestaoProjetosPage> {
-  // Controllers
   final potenciaCtrl = TextEditingController();
   final valorProjetoCtrl = TextEditingController();
   final valorKitCtrl = TextEditingController();
   final infraCtrl = TextEditingController();
   final instalacaoCtrl = TextEditingController();
 
-  // Clientes
   String clienteSelecionado = "Nenhum";
   DateTime? dataProjeto;
 
@@ -27,19 +27,16 @@ class _GestaoProjetosPageState extends State<GestaoProjetosPage> {
     "Cliente 3",
   ];
 
-  // Custos automáticos
   double nf = 0;
   double comissaoVendedor = 0;
   double comissaoSupervisor = 0;
   double comissaoGerencia = 0;
 
-  // Custos fixos
   final double custoProjetoFixo = 150.00;
   final double financiamentoFixo = 50.00;
   final double trtFixo = 69.70;
   final double pedidoLigacaoFixo = 200.00;
 
-  // Lista de outros custos
   List<Map<String, dynamic>> outrosCustos = [];
 
   @override
@@ -54,16 +51,38 @@ class _GestaoProjetosPageState extends State<GestaoProjetosPage> {
     double kit = double.tryParse(valorKitCtrl.text) ?? 0;
 
     setState(() {
-      nf = kit * 0.07; // NF = 7% do kit
-      comissaoVendedor = projeto * 0.04; // 4% do projeto
+      nf = kit * 0.07;
+      comissaoVendedor = projeto * 0.04;
       comissaoSupervisor = projeto * 0.015;
       comissaoGerencia = projeto * 0.005;
     });
   }
 
-  // =============================================================
-  // POPUP ADICIONAR OUTROS CUSTOS
-  // =============================================================
+  InputDecoration _decoracaoCampo(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: corPrincipal),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: corPrincipal),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: corPrincipal, width: 2),
+      ),
+    );
+  }
+
+  ButtonStyle _botaoPadrao() {
+    return ElevatedButton.styleFrom(
+      backgroundColor: corPrincipal,
+      foregroundColor: Colors.black,
+      minimumSize: const Size(double.infinity, 48),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+    );
+  }
+
   void _abrirPopupOutrosCustos() {
     final descricaoCtrl = TextEditingController();
     final valorCtrl = TextEditingController();
@@ -77,13 +96,13 @@ class _GestaoProjetosPageState extends State<GestaoProjetosPage> {
           children: [
             TextField(
               controller: descricaoCtrl,
-              decoration: const InputDecoration(labelText: "Descrição"),
+              decoration: _decoracaoCampo("Descrição"),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: valorCtrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Valor (R\$)"),
+              decoration: _decoracaoCampo("Valor (R\$)"),
             ),
           ],
         ),
@@ -93,16 +112,15 @@ class _GestaoProjetosPageState extends State<GestaoProjetosPage> {
             child: const Text("Cancelar"),
           ),
           ElevatedButton(
+            style: _botaoPadrao(),
             onPressed: () {
               double valor = double.tryParse(valorCtrl.text) ?? 0;
-
               setState(() {
                 outrosCustos.add({
                   "descricao": descricaoCtrl.text,
                   "valor": valor,
                 });
               });
-
               Navigator.pop(context);
             },
             child: const Text("Adicionar"),
@@ -112,19 +130,20 @@ class _GestaoProjetosPageState extends State<GestaoProjetosPage> {
     );
   }
 
-  // =============================================================
-  // FORM PRINCIPAL
-  // =============================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Gestão de Projetos")),
+      appBar: AppBar(
+        title: const Text("Gestão de Projetos"),
+        backgroundColor: Colors.black,
+        foregroundColor: corPrincipal,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: "Cliente"),
+              decoration: _decoracaoCampo("Cliente"),
               value: clienteSelecionado,
               items: listaClientes
                   .map((c) => DropdownMenuItem(value: c, child: Text(c)))
@@ -135,6 +154,7 @@ class _GestaoProjetosPageState extends State<GestaoProjetosPage> {
             const SizedBox(height: 12),
 
             ElevatedButton(
+              style: _botaoPadrao(),
               onPressed: () async {
                 final dt = await showDatePicker(
                   context: context,
@@ -147,11 +167,11 @@ class _GestaoProjetosPageState extends State<GestaoProjetosPage> {
               child: Text(
                 dataProjeto == null
                     ? "Selecionar Data do Projeto"
-                    : "Data: ${DateFormat('dd/MM/yyyy').format(dataProjeto!)}",
+                    : DateFormat('dd/MM/yyyy').format(dataProjeto!),
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
             _campo("Potência do Kit", potenciaCtrl),
             _campo("Valor do Projeto (R\$)", valorProjetoCtrl, numero: true),
@@ -161,36 +181,17 @@ class _GestaoProjetosPageState extends State<GestaoProjetosPage> {
 
             const SizedBox(height: 10),
 
-            // --------------------------
-            // BOTÃO: OUTROS CUSTOS
-            // --------------------------
             ElevatedButton.icon(
+              style: _botaoPadrao(),
               onPressed: _abrirPopupOutrosCustos,
               icon: const Icon(Icons.add),
               label: const Text("Adicionar Outros Custos"),
             ),
 
-            const SizedBox(height: 10),
-
-            // --------------------------
-            // LISTA DOS OUTROS CUSTOS
-            // --------------------------
-            if (outrosCustos.isNotEmpty)
-              Column(
-                children: outrosCustos
-                    .map(
-                      (c) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(c["descricao"]),
-                        trailing: Text("R\$ ${c["valor"].toStringAsFixed(2)}"),
-                      ),
-                    )
-                    .toList(),
-              ),
-
             const SizedBox(height: 20),
 
             ElevatedButton(
+              style: _botaoPadrao(),
               onPressed: _mostrarResumoProjeto,
               child: const Text("Salvar Projeto"),
             ),
@@ -210,10 +211,7 @@ class _GestaoProjetosPageState extends State<GestaoProjetosPage> {
       child: TextField(
         controller: ctrl,
         keyboardType: numero ? TextInputType.number : TextInputType.text,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(),
-        ),
+        decoration: _decoracaoCampo(label),
       ),
     );
   }

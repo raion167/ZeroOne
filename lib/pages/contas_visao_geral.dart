@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+const Color corPrincipal = Color(0xFFBBFB04);
+
 class ContasVisaoGeralPage extends StatefulWidget {
   const ContasVisaoGeralPage({super.key});
 
@@ -99,14 +101,21 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text("Visão Geral"),
+        backgroundColor: Colors.black,
+        foregroundColor: corPrincipal,
+        elevation: 0,
         bottom: TabBar(
           controller: _tab,
+          indicatorColor: corPrincipal,
+          labelColor: corPrincipal,
+          unselectedLabelColor: corPrincipal.withOpacity(0.5),
           tabs: const [
-            Tab(text: "Resumo Financeiro", icon: Icon(Icons.pie_chart)),
-            Tab(text: "Vencimentos", icon: Icon(Icons.event)),
-            Tab(text: "Fluxo de Caixa", icon: Icon(Icons.bar_chart)),
+            Tab(text: "Resumo Financeiro", icon: Icon(Icons.pie_chart_outline)),
+            Tab(text: "Vencimentos", icon: Icon(Icons.event_outlined)),
+            Tab(text: "Fluxo de Caixa", icon: Icon(Icons.bar_chart_outlined)),
           ],
         ),
       ),
@@ -166,14 +175,22 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
         children: [
           const Text(
             "Resumo Financeiro",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: corPrincipal,
+            ),
           ),
           const SizedBox(height: 20),
-          _cardResumo("Pagos", "R\$ ${pagos.toStringAsFixed(2)}", Colors.green),
+          _cardResumo(
+            "Pagos",
+            "R\$ ${pagos.toStringAsFixed(2)}",
+            Colors.blueAccent,
+          ),
           _cardResumo(
             "Pendentes",
             "R\$ ${pendentes.toStringAsFixed(2)}",
-            Colors.orange,
+            Colors.amberAccent,
           ),
           _cardResumo(
             "Atrasados",
@@ -183,7 +200,7 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
           _cardResumo(
             "Total a pagar",
             "R\$ ${total.toStringAsFixed(2)}",
-            Colors.blue,
+            corPrincipal,
           ),
         ],
       ),
@@ -218,21 +235,42 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
             DateTime.tryParse(conta["vencimento"].toString()) ?? hoje;
         bool atrasada = venc.isBefore(DateTime.now());
         return Card(
+          color: Colors.black,
+          elevation: 6,
+          shadowColor: corPrincipal.withOpacity(0.6),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: corPrincipal, width: 1.2),
+          ),
           child: ListTile(
             leading: Icon(
-              atrasada ? Icons.warning : Icons.info,
-              color: atrasada ? Colors.red : Colors.orange,
+              atrasada ? Icons.warning_amber_rounded : Icons.info_outline,
+              color: corPrincipal,
             ),
-            title: Text(conta["descricao"].toString()),
-
+            title: Text(
+              conta["descricao"].toString(),
+              style: TextStyle(color: corPrincipal),
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Fornecedor: ${conta["fornecedor"] ?? "Não Informado"}"),
-                Text("Vencimento: ${venc.day}/${venc.month}/${venc.year}"),
+                Text(
+                  "Fornecedor: ${conta["fornecedor"] ?? "Não Informado"}",
+                  style: TextStyle(color: corPrincipal.withOpacity(0.7)),
+                ),
+                Text(
+                  "Vencimento: ${venc.day}/${venc.month}/${venc.year}",
+                  style: TextStyle(color: corPrincipal.withOpacity(0.7)),
+                ),
               ],
             ),
-            trailing: Text("R\$ ${conta["valor"]}"),
+            trailing: Text(
+              "R\$ ${conta["valor"]}",
+              style: TextStyle(
+                color: corPrincipal,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         );
       },
@@ -267,14 +305,14 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
                   "icone": Icons.arrow_downward,
                   "titulo": "Entradas",
                   "valor": entradas,
-                  "cor": Colors.green,
+                  "cor": corPrincipal,
                   "descricao": "Valores recebidos no período",
                 },
                 {
                   "icone": Icons.arrow_upward,
                   "titulo": "Saídas",
                   "valor": saidas,
-                  "cor": Colors.red,
+                  "cor": Colors.redAccent,
                   "descricao": "Despesas registradas no período",
                 },
                 {
@@ -292,18 +330,30 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
                 itemBuilder: (context, index) {
                   final item = itens[index];
                   return Card(
-                    elevation: 3,
+                    color: Colors.black,
+                    elevation: 8,
+                    shadowColor: item["cor"].withOpacity(0.7),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(color: item["cor"], width: 1.6),
+                    ),
                     child: ListTile(
                       leading: Icon(
                         item["icone"],
                         color: item["cor"],
-                        size: 28,
+                        size: 30,
                       ),
                       title: Text(
                         item["titulo"],
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: item["cor"],
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      subtitle: Text(item["descricao"]),
+                      subtitle: Text(
+                        item["descricao"],
+                        style: TextStyle(color: item["cor"].withOpacity(0.6)),
+                      ),
                       trailing: Text(
                         "R\$ ${item["valor"].toStringAsFixed(2)}",
                         style: TextStyle(
@@ -326,7 +376,7 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
   // ✅ Menu superior: Anteriores / Atual / Próximos
   Widget _buildMenuFluxo() {
     return Container(
-      color: Colors.grey[200],
+      color: Colors.black,
       padding: const EdgeInsets.all(8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -342,7 +392,7 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
   // ✅ Submenu: Últimos 7, 15, 30 dias ou personalizado
   Widget _buildSubmenuAnteriores() {
     return Container(
-      color: Colors.grey[100],
+      color: Colors.black,
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -370,6 +420,7 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
                   });
                 }
               },
+
               icon: const Icon(Icons.calendar_today, size: 16),
               label: const Text("Personalizado"),
             ),
@@ -382,10 +433,12 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
 
   Widget _menuBotao(String titulo, String nome) {
     bool ativo = periodoSelecionado == nome;
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: ativo ? Colors.blue : Colors.grey[300],
-        foregroundColor: ativo ? Colors.white : Colors.black,
+
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        backgroundColor: ativo ? corPrincipal.withOpacity(0.15) : Colors.black,
+        foregroundColor: corPrincipal,
+        side: BorderSide(color: corPrincipal, width: 1.2),
       ),
       onPressed: () {
         setState(() {
@@ -401,8 +454,9 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
     bool ativo = filtroAnteriores == filtro;
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
-        backgroundColor: ativo ? Colors.blue : Colors.grey[300],
-        foregroundColor: ativo ? Colors.white : Colors.black,
+        backgroundColor: ativo ? corPrincipal.withOpacity(0.15) : Colors.black,
+        foregroundColor: ativo ? corPrincipal : corPrincipal.withOpacity(0.6),
+        side: BorderSide(color: corPrincipal, width: 1.2),
       ),
       onPressed: () {
         setState(() {
@@ -416,13 +470,26 @@ class _ContasVisaoGeralPageState extends State<ContasVisaoGeralPage>
 
   Widget _cardResumo(String titulo, String valor, Color cor) {
     return Card(
-      elevation: 3,
+      color: Colors.black,
+      elevation: 8,
+      shadowColor: corPrincipal.withOpacity(0.7),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: cor, width: 1.6),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(titulo, style: const TextStyle(fontSize: 16)),
+            Text(
+              titulo,
+              style: TextStyle(
+                fontSize: 16,
+                color: cor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             Text(
               valor,
               style: TextStyle(

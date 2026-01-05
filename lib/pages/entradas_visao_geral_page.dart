@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 const String apiBase = "http://localhost:8080/app/";
+const Color corPrincipal = Color(0xFFBBFB04);
+const Color corPendente = Colors.redAccent;
+const Color corTotal = Colors.blueAccent;
 
 class EntradasVisaoGeralPage extends StatefulWidget {
   const EntradasVisaoGeralPage({super.key});
@@ -43,10 +46,14 @@ class _EntradasVisaoGeralPageState extends State<EntradasVisaoGeralPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Visão Geral de Entradas")),
-
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text("Visão Geral de Entradas"),
+        backgroundColor: Colors.black,
+        foregroundColor: corPrincipal,
+      ),
       body: loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: corPrincipal))
           : Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -54,7 +61,11 @@ class _EntradasVisaoGeralPageState extends State<EntradasVisaoGeralPage> {
                 children: [
                   const Text(
                     "Resumo",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: corPrincipal,
+                    ),
                   ),
                   const SizedBox(height: 16),
 
@@ -63,23 +74,29 @@ class _EntradasVisaoGeralPageState extends State<EntradasVisaoGeralPage> {
                       _ResumoCard(
                         title: "Total no Mês",
                         value: "R\$ ${totalMes.toStringAsFixed(2)}",
-                        color: Colors.green,
+                        icon: Icons.trending_up,
+                        color: corTotal,
                       ),
                       const SizedBox(width: 16),
                       _ResumoCard(
                         title: "Pendente",
                         value: "R\$ ${totalPendente.toStringAsFixed(2)}",
-                        color: Colors.orange,
+                        icon: Icons.schedule,
+                        color: corPendente,
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
+
                   const Text(
                     "Últimas Entradas",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: corPrincipal,
+                    ),
                   ),
-
                   const SizedBox(height: 10),
 
                   Expanded(
@@ -87,14 +104,38 @@ class _EntradasVisaoGeralPageState extends State<EntradasVisaoGeralPage> {
                       itemCount: ultimasEntradas.length,
                       itemBuilder: (_, i) {
                         final item = ultimasEntradas[i];
-                        return ListTile(
-                          leading: const Icon(
-                            Icons.attach_money,
-                            color: Colors.green,
+                        return Container(
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: corPrincipal, width: 1.2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: corPrincipal.withOpacity(0.4),
+                                blurRadius: 8,
+                                spreadRadius: 1,
+                              ),
+                            ],
                           ),
-                          title: Text(item["identificador"] ?? "Sem nome"),
-                          subtitle: Text(
-                            "R\$ ${item["valor_recebido"]} • ${item["data_recebimento"]}",
+                          child: ListTile(
+                            leading: const Icon(
+                              Icons.attach_money,
+                              color: corPrincipal,
+                            ),
+                            title: Text(
+                              item["identificador"] ?? "Sem nome",
+                              style: const TextStyle(
+                                color: corPrincipal,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              "R\$ ${item["valor_recebido"]} • ${item["data_recebimento"]}",
+                              style: TextStyle(
+                                color: corPrincipal.withOpacity(0.8),
+                              ),
+                            ),
                           ),
                         );
                       },
@@ -110,42 +151,56 @@ class _EntradasVisaoGeralPageState extends State<EntradasVisaoGeralPage> {
 class _ResumoCard extends StatelessWidget {
   final String title;
   final String value;
+  final IconData icon;
   final Color color;
 
   const _ResumoCard({
     required this.title,
     required this.value,
+    required this.icon,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Card(
-        elevation: 4,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.6),
+              blurRadius: 14,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 30),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: TextStyle(
+                color: color.withOpacity(0.9),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: color,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
+
+const Color corPrincipal = Color(0xFFBBFB04);
 
 class ContasListagemPage extends StatefulWidget {
   const ContasListagemPage({super.key});
@@ -601,21 +602,28 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
       context: context,
       builder: (context) {
         return Dialog(
+          backgroundColor: Colors.black,
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 40,
             vertical: 80,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadiusGeometry.circular(18),
+            side: BorderSide(color: corPrincipal, width: 1.2),
           ),
           child: SizedBox(
             width: 700,
             height: 520,
             child: DefaultTabController(
-              length: 3,
+              length: 2,
               child: Column(
                 children: [
                   Container(
-                    color: Theme.of(context).primaryColor,
+                    color: Colors.black,
                     child: TabBar(
-                      indicatorColor: Colors.white,
+                      indicatorColor: corPrincipal,
+                      labelColor: corPrincipal,
+                      unselectedLabelColor: corPrincipal.withOpacity(0.5),
                       tabs: const [
                         Tab(text: "Anexos"),
                         Tab(text: "Registrar Pagamento"),
@@ -636,17 +644,26 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
+                                  color: corPrincipal,
                                 ),
                               ),
                               const SizedBox(height: 8),
                               const Text(
-                                "Clique em 'Enviar Anexo' para carregar arquivos relacionados a esta conta.",
+                                "Clique em 'Enviar Anexo' para carregar arquivos.",
+                                style: TextStyle(color: Colors.white70),
                               ),
                               const SizedBox(height: 12),
                               ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: corPrincipal.withOpacity(
+                                    0.15,
+                                  ),
+                                  foregroundColor: corPrincipal,
+                                  side: BorderSide(color: corPrincipal),
+                                ),
                                 onPressed: () => _uploadAnexo(id),
                                 icon: const Icon(Icons.upload_file),
-                                label: const Text("Enviar Anexo(s)"),
+                                label: const Text("Enviar Anexo"),
                               ),
                               const SizedBox(height: 12),
                               // Aqui, se desejar, você pode fazer fetch dos anexos do servidor e listar.
@@ -687,13 +704,18 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Contas a Pagar"),
+        backgroundColor: Colors.black,
+        foregroundColor: corPrincipal,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
+            color: corPrincipal,
             onPressed: _abrirFormularioAdicionar,
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
+            color: corPrincipal,
             onPressed: _carregarContas,
           ),
         ],
@@ -703,7 +725,17 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
           : Column(
               children: [
                 ExpansionTile(
-                  title: const Text("Filtros"),
+                  backgroundColor: Colors.black,
+                  collapsedBackgroundColor: Colors.black,
+                  iconColor: corPrincipal,
+                  collapsedIconColor: corPrincipal,
+                  title: Text(
+                    "Filtros",
+                    style: TextStyle(
+                      color: corPrincipal,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(12),
@@ -762,9 +794,21 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                             children: [
                               Expanded(
                                 child: TextFormField(
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     labelText: "Fornecedor",
+                                    labelStyle: TextStyle(color: corPrincipal),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: corPrincipal.withOpacity(0.6),
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: corPrincipal,
+                                      ),
+                                    ),
                                   ),
+                                  style: TextStyle(color: corPrincipal),
                                   onChanged: (v) => setState(
                                     () =>
                                         filtroFornecedor = v.isEmpty ? null : v,
@@ -774,9 +818,21 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: TextFormField(
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     labelText: "Categoria",
+                                    labelStyle: TextStyle(color: corPrincipal),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: corPrincipal.withOpacity(0.6),
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: corPrincipal,
+                                      ),
+                                    ),
                                   ),
+                                  style: TextStyle(color: corPrincipal),
                                   onChanged: (v) => setState(
                                     () =>
                                         filtroCategoria = v.isEmpty ? null : v,
@@ -790,9 +846,21 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                             children: [
                               Expanded(
                                 child: TextFormField(
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     labelText: "Status",
+                                    labelStyle: TextStyle(color: corPrincipal),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: corPrincipal.withOpacity(0.6),
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: corPrincipal,
+                                      ),
+                                    ),
                                   ),
+                                  style: TextStyle(color: corPrincipal),
                                   onChanged: (v) => setState(
                                     () => filtroStatus = v.isEmpty ? null : v,
                                   ),
@@ -801,9 +869,21 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: TextFormField(
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     labelText: "Projeto",
+                                    labelStyle: TextStyle(color: corPrincipal),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: corPrincipal.withOpacity(0.6),
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: corPrincipal,
+                                      ),
+                                    ),
                                   ),
+                                  style: TextStyle(color: corPrincipal),
                                   onChanged: (v) => setState(
                                     () => filtroProjeto = v.isEmpty ? null : v,
                                   ),
@@ -813,6 +893,11 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                           ),
                           const SizedBox(height: 10),
                           ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: corPrincipal.withOpacity(0.15),
+                              foregroundColor: corPrincipal,
+                              side: BorderSide(color: corPrincipal),
+                            ),
                             onPressed: aplicarFiltros,
                             icon: const Icon(Icons.filter_alt),
                             label: const Text("Aplicar Filtros"),
@@ -833,8 +918,17 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                             final status =
                                 c["status"]?.toString() ?? "Pendente";
                             return Card(
+                              color: Colors.black,
                               margin: const EdgeInsets.only(bottom: 12),
-                              elevation: 3,
+                              elevation: 8,
+                              shadowColor: _corStatus(status).withOpacity(0.6),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadiusGeometry.circular(14),
+                                side: BorderSide(
+                                  color: _corStatus(status),
+                                  width: 1.2,
+                                ),
+                              ),
                               child: ListTile(
                                 onTap: () => _abrirDetalhesConta(c),
                                 leading: GestureDetector(
@@ -843,6 +937,10 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                                     status,
                                   ),
                                   child: Chip(
+                                    elevation: 4,
+                                    shadowColor: _corStatus(
+                                      status,
+                                    ).withOpacity(0.7),
                                     avatar: Icon(
                                       _iconStatus(status),
                                       color: Colors.white,
@@ -857,22 +955,36 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                                     ),
                                   ),
                                 ),
-                                title: Text(c["descricao"] ?? "-"),
+                                title: Text(
+                                  c["descricao"] ?? "-",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       "Fornecedor: ${c["fornecedor"] ?? '-'}",
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.7),
+                                      ),
                                     ),
                                     Text(
                                       "Vencimento: ${c["vencimento"] ?? '-'} • Projeto: ${c["projeto"] ?? '-'}",
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.7),
+                                      ),
                                     ),
                                   ],
                                 ),
                                 trailing: Text(
                                   "R\$ ${c["valor"]?.toString() ?? '-'}",
                                   style: const TextStyle(
+                                    color: Colors.white,
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 16,
                                   ),
                                 ),
                               ),
@@ -934,6 +1046,8 @@ class _RegistrarPagamentoTabState extends State<RegistrarPagamentoTab> {
       child: Column(
         children: [
           DropdownButtonFormField<String>(
+            dropdownColor: Colors.black,
+            style: TextStyle(color: corPrincipal),
             value: metodo,
             items: const [
               DropdownMenuItem(value: "pix", child: Text("PIX")),
@@ -948,13 +1062,26 @@ class _RegistrarPagamentoTabState extends State<RegistrarPagamentoTab> {
           const SizedBox(height: 10),
           TextFormField(
             controller: valorCtrl,
+            style: TextStyle(color: corPrincipal),
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: "Valor pago (opcional)",
+            decoration: InputDecoration(
+              labelText: "Valor Pago (Opcional)",
+              labelStyle: TextStyle(color: corPrincipal),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: corPrincipal.withOpacity(0.6)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: corPrincipal),
+              ),
             ),
           ),
           const SizedBox(height: 10),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: corPrincipal.withOpacity(0.15),
+              foregroundColor: corPrincipal,
+              side: BorderSide(color: corPrincipal),
+            ),
             onPressed: _selecionarDataPagamento,
             child: Text(
               dataPagamento == null
@@ -967,11 +1094,19 @@ class _RegistrarPagamentoTabState extends State<RegistrarPagamentoTab> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: corPrincipal.withOpacity(0.7),
+                ),
                 onPressed: () => Navigator.pop(context),
                 child: const Text("Cancelar"),
               ),
               const SizedBox(width: 8),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: corPrincipal.withOpacity(0.15),
+                  foregroundColor: corPrincipal,
+                  side: BorderSide(color: corPrincipal),
+                ),
                 onPressed: () {
                   if (dataPagamento == null) {
                     ScaffoldMessenger.of(context).showSnackBar(

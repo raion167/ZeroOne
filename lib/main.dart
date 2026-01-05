@@ -4,13 +4,14 @@ import 'auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:html' as html;
 
+const Color corPrincipal = Color(0xFFBBFB04);
 void main() async {
   bool modoNoturno = false;
   double tamanhoFonte = 1.0;
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
 
-  modoNoturno = prefs.getBool("modoNotuno") ?? false;
+  modoNoturno = prefs.getBool("modoNoturno") ?? false;
   tamanhoFonte = prefs.getDouble("TamanhoFonte") ?? 1.0;
 
   runApp(const MyApp());
@@ -25,13 +26,23 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'ZeroOne',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.green,
+        scaffoldBackgroundColor: Colors.black,
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Colors.grey[200],
+          fillColor: Colors.black,
+          labelStyle: const TextStyle(color: corPrincipal),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+            borderSide: const BorderSide(color: corPrincipal),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: corPrincipal),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: corPrincipal, width: 2),
           ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 20,
@@ -133,22 +144,38 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.black,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // LOGO
+              Image.asset(
+                'assets/images/icone.png',
+                height: 120,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "PhaseOne",
+                style: TextStyle(
+                  color: corPrincipal,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 40),
               // 🔹 Toggle Login / Cadastro
               ToggleButtons(
                 isSelected: isSelected,
                 borderRadius: BorderRadius.circular(20),
-                selectedColor: Colors.white,
-                fillColor: Colors.black,
-                color: Colors.black,
-                selectedBorderColor: Colors.black,
-                borderColor: Colors.black,
+                selectedColor: Colors.black,
+                fillColor: corPrincipal,
+                color: corPrincipal,
+                selectedBorderColor: corPrincipal,
+                borderColor: corPrincipal,
                 onPressed: (int index) {
                   setState(() {
                     for (int i = 0; i < isSelected.length; i++) {
@@ -176,9 +203,10 @@ class _LoginPageState extends State<LoginPage> {
                   children: [
                     TextField(
                       controller: nomeController,
+                      style: const TextStyle(color: corPrincipal),
                       decoration: const InputDecoration(
                         labelText: "Nome",
-                        prefixIcon: Icon(Icons.person, color: Colors.black),
+                        prefixIcon: Icon(Icons.person, color: corPrincipal),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -188,9 +216,10 @@ class _LoginPageState extends State<LoginPage> {
               // 🔹 Campo Email
               TextField(
                 controller: emailController,
+                style: const TextStyle(color: corPrincipal),
                 decoration: const InputDecoration(
                   labelText: "E-mail",
-                  prefixIcon: Icon(Icons.email, color: Colors.black),
+                  prefixIcon: Icon(Icons.email, color: corPrincipal),
                 ),
               ),
               const SizedBox(height: 16),
@@ -199,9 +228,10 @@ class _LoginPageState extends State<LoginPage> {
               TextField(
                 controller: senhaController,
                 obscureText: true,
+                style: const TextStyle(color: corPrincipal),
                 decoration: const InputDecoration(
                   labelText: "Senha",
-                  prefixIcon: Icon(Icons.lock, color: Colors.black),
+                  prefixIcon: Icon(Icons.lock, color: corPrincipal),
                 ),
               ),
               const SizedBox(height: 30),
@@ -212,20 +242,20 @@ class _LoginPageState extends State<LoginPage> {
                 height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
+                    backgroundColor: corPrincipal,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   onPressed: _carregando ? null : _autenticar,
                   child: _carregando
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const CircularProgressIndicator(color: Colors.black)
                       : Text(
                           isLogin ? "Entrar" : "Cadastrar",
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: Colors.black,
                           ),
                         ),
                 ),

@@ -416,7 +416,15 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setStateDialog) {
           return AlertDialog(
-            title: const Text("Adicionar Conta"),
+            backgroundColor: Colors.black,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadiusGeometry.circular(18),
+              side: BorderSide(color: corPrincipal, width: 1.2),
+            ),
+            title: const Text(
+              "Adicionar Conta",
+              style: TextStyle(color: corPrincipal),
+            ),
             contentPadding: const EdgeInsets.all(20),
             insetPadding: const EdgeInsets.symmetric(
               horizontal: 40,
@@ -429,13 +437,39 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                   children: [
                     TextField(
                       controller: descricaoCtrl,
-                      decoration: const InputDecoration(labelText: "Descrição"),
+                      style: TextStyle(color: corPrincipal),
+                      decoration: InputDecoration(
+                        labelText: "Descrição",
+                        labelStyle: TextStyle(color: corPrincipal),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: corPrincipal.withOpacity(0.6),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: corPrincipal),
+                        ),
+                      ),
                     ),
 
                     const SizedBox(height: 12),
 
                     // 🔥 FORNECEDORES (DROPDOWN)
                     DropdownButtonFormField<String>(
+                      dropdownColor: Colors.black,
+                      style: TextStyle(color: corPrincipal),
+                      decoration: InputDecoration(
+                        labelText: "Fornecedor",
+                        labelStyle: TextStyle(color: corPrincipal),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: corPrincipal.withOpacity(0.6),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: corPrincipal),
+                        ),
+                      ),
                       value: fornecedorSel,
                       items: listaFornecedores
                           .map(
@@ -443,15 +477,26 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                           )
                           .toList(),
                       onChanged: (v) => setStateDialog(() => fornecedorSel = v),
-                      decoration: const InputDecoration(
-                        labelText: "Fornecedor",
-                      ),
                     ),
 
                     const SizedBox(height: 12),
 
                     // 🔥 CATEGORIAS FIXAS
                     DropdownButtonFormField<String>(
+                      dropdownColor: Colors.black,
+                      style: TextStyle(color: corPrincipal),
+                      decoration: InputDecoration(
+                        labelText: "Categoria",
+                        labelStyle: TextStyle(color: corPrincipal),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: corPrincipal.withOpacity(0.6),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: corPrincipal),
+                        ),
+                      ),
                       value: categoriaSel,
                       items: listaCategorias
                           .map(
@@ -459,13 +504,26 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                           )
                           .toList(),
                       onChanged: (v) => setStateDialog(() => categoriaSel = v),
-                      decoration: const InputDecoration(labelText: "Categoria"),
                     ),
 
                     const SizedBox(height: 12),
 
                     // 🔥 PROJETOS — PEGO DO BANCO
                     DropdownButtonFormField<String>(
+                      dropdownColor: Colors.black,
+                      style: TextStyle(color: corPrincipal),
+                      decoration: InputDecoration(
+                        labelText: "Projetos/Centro de Custo",
+                        labelStyle: TextStyle(color: corPrincipal),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: corPrincipal.withOpacity(0.6),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: corPrincipal),
+                        ),
+                      ),
                       value: projetoSel,
                       items: listaProjetos
                           .map(
@@ -473,9 +531,6 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                           )
                           .toList(),
                       onChanged: (v) => setStateDialog(() => projetoSel = v),
-                      decoration: const InputDecoration(
-                        labelText: "Projeto / Centro de Custo",
-                      ),
                     ),
 
                     const SizedBox(height: 12),
@@ -483,8 +538,18 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                     TextField(
                       controller: valorCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: "Valor (ex: 350.75)",
+                      style: TextStyle(color: corPrincipal),
+                      decoration: InputDecoration(
+                        labelText: "Valor",
+                        labelStyle: TextStyle(color: corPrincipal),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: corPrincipal.withOpacity(0.6),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: corPrincipal),
+                        ),
                       ),
                     ),
 
@@ -492,6 +557,20 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
 
                     // 🔥 RECORRÊNCIA
                     DropdownButtonFormField<String>(
+                      dropdownColor: Colors.black,
+                      style: TextStyle(color: corPrincipal),
+                      decoration: InputDecoration(
+                        labelText: "Recorrência",
+                        labelStyle: TextStyle(color: corPrincipal),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: corPrincipal.withOpacity(0.6),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: corPrincipal),
+                        ),
+                      ),
                       value: recorrencia,
                       items: const [
                         DropdownMenuItem(
@@ -510,24 +589,52 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                       ],
                       onChanged: (v) =>
                           setStateDialog(() => recorrencia = v ?? "nenhuma"),
-                      decoration: const InputDecoration(
-                        labelText: "Recorrência",
-                      ),
                     ),
 
                     const SizedBox(height: 12),
 
                     Row(
                       children: [
-                        const Text("Parcelas: "),
-                        const SizedBox(width: 8),
+                        Text(
+                          "Parcelas:",
+                          style: TextStyle(
+                            color: corPrincipal,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: TextFormField(
-                            initialValue: parcelas.toString(),
-                            keyboardType: TextInputType.number,
+                          child: DropdownButtonFormField<int>(
+                            value: parcelas,
+                            dropdownColor: Colors.black,
+                            iconEnabledColor: Colors.black,
+                            style: TextStyle(color: corPrincipal),
+                            decoration: InputDecoration(
+                              labelText: "Quantidade de Parcelas",
+                              labelStyle: TextStyle(color: corPrincipal),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: corPrincipal.withOpacity(0.6),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: corPrincipal),
+                              ),
+                            ),
+                            items: List.generate(
+                              24,
+                              (i) => DropdownMenuItem<int>(
+                                value: i + 1,
+                                child: Text(
+                                  "${i + 1}x",
+                                  style: TextStyle(color: corPrincipal),
+                                ),
+                              ),
+                            ),
                             onChanged: (v) {
-                              final val = int.tryParse(v) ?? 1;
-                              setStateDialog(() => parcelas = val);
+                              if (v != null) {
+                                setStateDialog(() => parcelas = v);
+                              }
                             },
                           ),
                         ),
@@ -537,6 +644,11 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                     const SizedBox(height: 16),
 
                     ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: corPrincipal.withOpacity(0.15),
+                        foregroundColor: corPrincipal,
+                        side: BorderSide(color: corPrincipal),
+                      ),
                       onPressed: () async {
                         final dt = await showDatePicker(
                           context: ctx,
@@ -558,10 +670,18 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
             ),
             actions: [
               TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: corPrincipal.withOpacity(0.7),
+                ),
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text("Cancelar"),
               ),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: corPrincipal.withOpacity(0.15),
+                  foregroundColor: corPrincipal,
+                  side: BorderSide(color: corPrincipal),
+                ),
                 onPressed: () {
                   if (vencimento == null) {
                     ScaffoldMessenger.of(context).showSnackBar(

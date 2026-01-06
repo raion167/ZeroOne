@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:zeroone/pages/contas_relatorios.dart';
 import 'contas_relatorios.dart';
 
+const Color corPrincipal = Color(0xFFBBFB04);
+
 class ContasRelatoriosPage extends StatefulWidget {
   const ContasRelatoriosPage({super.key});
 
@@ -28,36 +30,58 @@ class _ContasRelatoriosPageState extends State<ContasRelatoriosPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text("Relatórios Financeiros"),
+        backgroundColor: Colors.black,
+        foregroundColor: corPrincipal,
+        elevation: 0,
         bottom: TabBar(
           controller: _tab,
           isScrollable: true,
-          labelColor: Colors.green,
-          unselectedLabelColor: Colors.black,
+          indicatorColor: corPrincipal,
+          labelColor: corPrincipal,
+          unselectedLabelColor: corPrincipal.withOpacity(0.5),
           tabs: const [
-            Tab(text: "Status"),
-            Tab(text: "Evolução Mensal"),
-            Tab(text: "Categorias"),
-            Tab(text: "Fornecedores"),
-            Tab(text: "Heatmap"),
+            Tab(icon: Icon(Icons.pie_chart_outline), text: "Status"),
+            Tab(icon: Icon(Icons.trending_up), text: "Evolução"),
+            Tab(icon: Icon(Icons.category_outlined), text: "Categorias"),
+            Tab(icon: Icon(Icons.store_outlined), text: "Fornecedores"),
+            Tab(icon: Icon(Icons.calendar_month), text: "Heatmap"),
           ],
         ),
       ),
-
       body: TabBarView(
         controller: _tab,
         children: const [
-          // Cada aba exibe um gráfico
-          Padding(padding: EdgeInsets.all(16), child: GraficoStatusPagamento()),
-          Padding(padding: EdgeInsets.all(16), child: GraficoEvolucaoMensal()),
-          Padding(padding: EdgeInsets.all(16), child: GraficoCategorias()),
-          Padding(padding: EdgeInsets.all(16), child: GraficoFornecedores()),
-          Padding(
-            padding: EdgeInsets.all(16),
-            child: GraficoHeatmapVencimentos(),
-          ),
+          _GraficoWrapper(child: GraficoStatusPagamento()),
+          _GraficoWrapper(child: GraficoEvolucaoMensal()),
+          _GraficoWrapper(child: GraficoCategorias()),
+          _GraficoWrapper(child: GraficoFornecedores()),
+          _GraficoWrapper(child: GraficoHeatmapVencimentos()),
         ],
+      ),
+    );
+  }
+}
+
+class _GraficoWrapper extends StatelessWidget {
+  final Widget child;
+  const _GraficoWrapper({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Card(
+        color: Colors.black,
+        elevation: 10,
+        shadowColor: corPrincipal.withOpacity(0.7),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: corPrincipal, width: 1.4),
+        ),
+        child: Padding(padding: const EdgeInsets.all(16), child: child),
       ),
     );
   }

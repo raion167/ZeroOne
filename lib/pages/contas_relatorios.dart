@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:zeroone/main.dart';
 
 /// --------------------------------------------------
 /// Serviço que consome a API de relatórios
@@ -97,8 +98,17 @@ class GraficoStatusPagamento extends StatelessWidget {
                       BarChartRodData(
                         toY: pagas,
                         color: Colors.green,
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: BorderRadius.circular(4),
                         width: barWidth,
+                        gradient: LinearGradient(
+                          begin: AlignmentGeometry.bottomCenter,
+                          end: AlignmentGeometry.topCenter,
+                          colors: [
+                            corPrincipal.withOpacity(0.7),
+                            corPrincipal.withOpacity(0.9),
+                          ],
+                        ),
+                        backDrawRodData: BackgroundBarChartRodData(show: false),
                       ),
                     ],
                   ),
@@ -108,8 +118,17 @@ class GraficoStatusPagamento extends StatelessWidget {
                       BarChartRodData(
                         toY: pendentes,
                         color: Colors.orange,
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: BorderRadius.circular(4),
                         width: barWidth,
+                        gradient: LinearGradient(
+                          begin: AlignmentGeometry.bottomCenter,
+                          end: AlignmentGeometry.topCenter,
+                          colors: [
+                            Colors.orange.withOpacity(0.7),
+                            Colors.orange.withOpacity(0.9),
+                          ],
+                        ),
+                        backDrawRodData: BackgroundBarChartRodData(show: false),
                       ),
                     ],
                   ),
@@ -119,8 +138,17 @@ class GraficoStatusPagamento extends StatelessWidget {
                       BarChartRodData(
                         toY: atrasadas,
                         color: Colors.red,
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: BorderRadius.circular(4),
                         width: barWidth,
+                        gradient: LinearGradient(
+                          begin: AlignmentGeometry.bottomCenter,
+                          end: AlignmentGeometry.topCenter,
+                          colors: [
+                            Colors.red.withOpacity(0.7),
+                            Colors.red.withOpacity(0.9),
+                          ],
+                        ),
+                        backDrawRodData: BackgroundBarChartRodData(show: false),
                       ),
                     ],
                   ),
@@ -141,6 +169,7 @@ class GraficoStatusPagamento extends StatelessWidget {
                         final estilo = TextStyle(
                           fontSize: fontSize,
                           fontWeight: FontWeight.w500,
+                          color: Colors.white,
                         );
                         switch (value.toInt()) {
                           case 0:
@@ -164,7 +193,7 @@ class GraficoStatusPagamento extends StatelessWidget {
                         if (value % 1 == 0) {
                           return Text(
                             value.toInt().toString(),
-                            style: TextStyle(fontSize: fontSize),
+                            style: TextStyle(fontSize: 12, color: Colors.white),
                           );
                         }
                         return const SizedBox.shrink();
@@ -273,8 +302,21 @@ class GraficoEvolucaoMensal extends StatelessWidget {
                 spots: spots,
                 isCurved: true,
                 barWidth: 3,
-                color: Colors.blue,
+                color: corPrincipal,
                 dotData: FlDotData(show: false),
+
+                //GLOW NEON
+                belowBarData: BarAreaData(
+                  show: true,
+                  gradient: LinearGradient(
+                    colors: [
+                      corPrincipal.withOpacity(0.25),
+                      Colors.transparent,
+                    ],
+                    begin: AlignmentGeometry.topCenter,
+                    end: AlignmentGeometry.bottomCenter,
+                  ),
+                ),
               ),
             ],
 
@@ -294,7 +336,7 @@ class GraficoEvolucaoMensal extends StatelessWidget {
 
                     return Text(
                       nomesMeses[mesIndex],
-                      style: const TextStyle(fontSize: 12),
+                      style: const TextStyle(fontSize: 16, color: Colors.white),
                     );
                   },
                 ),
@@ -309,7 +351,7 @@ class GraficoEvolucaoMensal extends StatelessWidget {
                   getTitlesWidget: (value, meta) {
                     return Text(
                       value.toInt().toString(),
-                      style: const TextStyle(fontSize: 11),
+                      style: const TextStyle(fontSize: 12, color: Colors.white),
                     );
                   },
                 ),
@@ -354,7 +396,18 @@ class GraficoCategorias extends StatelessWidget {
           final value = _toDouble(e["valor"]);
           final title = (e["categoria"] ?? "").toString();
           final color = Colors.primaries[entry.key % Colors.primaries.length];
-          return PieChartSectionData(value: value, title: title, color: color);
+          return PieChartSectionData(
+            value: value,
+            title: "${value.toStringAsFixed(1)}%",
+            radius: 52,
+            color: color.withOpacity(0.9),
+            titleStyle: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              shadows: [Shadow(color: Colors.black54, blurRadius: 10)],
+            ),
+          );
         }).toList();
 
         return PieChart(
@@ -392,12 +445,67 @@ class GraficoFornecedores extends StatelessWidget {
           return BarChartGroupData(
             x: index,
             barRods: [
-              BarChartRodData(toY: total / 1000, width: 18, color: Colors.teal),
+              BarChartRodData(
+                toY: total / 1000,
+                width: 18,
+                borderRadius: BorderRadius.circular(8),
+                gradient: LinearGradient(
+                  begin: AlignmentGeometry.bottomCenter,
+                  end: AlignmentGeometry.topCenter,
+                  colors: [
+                    corPrincipal.withOpacity(0.7),
+                    corPrincipal.withOpacity(0.9),
+                  ],
+                ),
+                backDrawRodData: BackgroundBarChartRodData(show: false),
+              ),
             ],
           );
         }).toList();
 
-        return BarChart(BarChartData(barGroups: groups));
+        return BarChart(
+          BarChartData(
+            barGroups: groups,
+
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 40,
+                  getTitlesWidget: (value, meta) {
+                    return Text(
+                      "${value.toInt()}k",
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    );
+                  },
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    return Text(
+                      "Fornecedor ${value.toInt() + 1}",
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    );
+                  },
+                ),
+              ),
+              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+            ),
+
+            gridData: FlGridData(
+              show: true,
+              getDrawingHorizontalLine: (value) =>
+                  FlLine(color: Colors.white.withOpacity(0.15), strokeWidth: 1),
+            ),
+
+            borderData: FlBorderData(show: false),
+          ),
+        );
       },
     );
   }
@@ -449,7 +557,11 @@ class GraficoHeatmapVencimentos extends StatelessWidget {
                   child: Center(
                     child: Text(
                       e,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 );
@@ -470,15 +582,25 @@ class GraficoHeatmapVencimentos extends StatelessWidget {
                     child: Container(
                       margin: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(intensidade),
+                        color: corPrincipal.withOpacity(
+                          0.4 + intensidade * 0.4,
+                        ),
                         borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: corPrincipal.withOpacity(intensidade * 0.6),
+                            blurRadius: 12,
+                            spreadRadius: 1,
+                          ),
+                        ],
                       ),
                       child: Center(
                         child: Text(
                           valor.toString(),
                           style: const TextStyle(
-                            color: Colors.black,
+                            color: Colors.white,
                             fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
                         ),
                       ),
@@ -492,7 +614,10 @@ class GraficoHeatmapVencimentos extends StatelessWidget {
             const SizedBox(height: 4),
             const Text(
               "Vencimentos",
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ],
         );

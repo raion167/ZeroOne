@@ -6,6 +6,9 @@ import 'package:zeroone/pages/movimentacao_relatorios_page.dart';
 import 'menu_lateral.dart';
 import 'estoque_lista_page.dart';
 import 'estoque_adicionar_page.dart';
+import 'package:zeroone/main.dart';
+
+const Color corPrincipal = Color(0xFFBBFB04);
 
 class EstoqueMovimentacoesPage extends StatelessWidget {
   final String nomeUsuario;
@@ -19,11 +22,18 @@ class EstoqueMovimentacoesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BaseScaffold(
-      titulo: "Controle de Estoque",
-      nomeUsuario: nomeUsuario,
-      emailUsuario: emailUsuario,
-      corpo: Padding(
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: corPrincipal,
+        title: const Text("Controle de Movimentações"),
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back),
+        ),
+      ),
+
+      body: Padding(
         padding: const EdgeInsets.all(16),
         child: GridView.count(
           crossAxisCount: 2,
@@ -33,7 +43,7 @@ class EstoqueMovimentacoesPage extends StatelessWidget {
             _EstoqueCard(
               icon: Icons.dashboard,
               label: "Visão Geral",
-              color: Colors.blue,
+              color: corPrincipal,
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -50,7 +60,7 @@ class EstoqueMovimentacoesPage extends StatelessWidget {
             _EstoqueCard(
               icon: Icons.list_alt,
               label: "Movimentações",
-              color: Colors.orange,
+              color: corPrincipal,
               onTap: () {
                 Navigator.push(
                   context,
@@ -66,7 +76,7 @@ class EstoqueMovimentacoesPage extends StatelessWidget {
             _EstoqueCard(
               icon: Icons.add_box,
               label: "Adicionar Movimentação",
-              color: Colors.green,
+              color: corPrincipal,
               onTap: () {
                 Navigator.push(
                   context,
@@ -82,7 +92,7 @@ class EstoqueMovimentacoesPage extends StatelessWidget {
             _EstoqueCard(
               icon: Icons.inventory_2,
               label: "Produtos",
-              color: Colors.purple,
+              color: corPrincipal,
               onTap: () {
                 Navigator.push(
                   context,
@@ -98,7 +108,7 @@ class EstoqueMovimentacoesPage extends StatelessWidget {
             _EstoqueCard(
               icon: Icons.bar_chart,
               label: "Relatórios",
-              color: Colors.red,
+              color: corPrincipal,
               onTap: () {
                 Navigator.push(
                   context,
@@ -135,27 +145,32 @@ class _EstoqueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: Colors.white,
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 8,
+      color: Colors.black,
+      shadowColor: color.withOpacity(0.6),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadiusGeometry.circular(18),
+        side: BorderSide(color: color.withOpacity(0.9), width: 1.4),
+      ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: color, size: 48),
-              const SizedBox(height: 10),
+              Icon(icon, size: 48, color: color),
+              const SizedBox(height: 14),
               Text(
                 label,
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.bold,
                   color: color,
+                  letterSpacing: 0.4,
                 ),
-                textAlign: TextAlign.center,
               ),
             ],
           ),

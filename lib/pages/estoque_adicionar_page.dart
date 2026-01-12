@@ -82,11 +82,18 @@ class _EstoqueAdicionarPageState extends State<EstoqueAdicionarPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BaseScaffold(
-      titulo: "Adicionar Item",
-      nomeUsuario: widget.nomeUsuario,
-      emailUsuario: widget.emailUsuario,
-      corpo: Padding(
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: corPrincipal,
+        title: const Text("Itens em Estoque"),
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: Icon(Icons.arrow_back),
+        ),
+      ),
+
+      body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
@@ -116,18 +123,19 @@ class _EstoqueAdicionarPageState extends State<EstoqueAdicionarPage> {
                 : ElevatedButton.icon(
                     onPressed: adicionarProduto,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+                      backgroundColor: corPrincipal,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
                         vertical: 12,
                       ),
                     ),
-                    icon: const Icon(Icons.check),
+                    icon: const Icon(Icons.check, color: Colors.black),
                     label: const Text(
                       "Salvar",
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: Colors.black,
                       ),
                     ),
                   ),

@@ -90,7 +90,16 @@ class _GestaoProjetosPageState extends State<GestaoProjetosPage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Adicionar Outro Custo"),
+        title: const Text(
+          "Adicionar Outro Custo",
+          style: TextStyle(color: corPrincipal),
+        ),
+
+        backgroundColor: Colors.black,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadiusGeometry.circular(18),
+          side: BorderSide(color: corPrincipal, width: 1.2),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -109,7 +118,10 @@ class _GestaoProjetosPageState extends State<GestaoProjetosPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancelar"),
+            child: const Text(
+              "Cancelar",
+              style: TextStyle(color: corPrincipal),
+            ),
           ),
           ElevatedButton(
             style: _botaoPadrao(),

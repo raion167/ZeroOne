@@ -54,8 +54,12 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xff0b0f14),
-      appBar: AppBar(title: const Text("Entradas por Mês")),
+      backgroundColor: const Color(0xFF0B0F14),
+      appBar: AppBar(
+        title: const Text("Entradas por Mês"),
+        backgroundColor: Colors.black,
+        foregroundColor: corPrincipal,
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
@@ -63,8 +67,13 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
               child: Column(
                 children: [
                   const Text(
-                    "Gráfico de Entradas Mensais",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    "Entradas Mensais",
+                    style: TextStyle(
+                      color: corPrincipal,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      shadows: [Shadow(color: corPrincipal, blurRadius: 12)],
+                    ),
                   ),
                   const SizedBox(height: 20),
 
@@ -80,8 +89,10 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
                           gridData: FlGridData(
                             show: true,
                             drawVerticalLine: false,
-                            getDrawingHorizontalLine: (value) =>
-                                FlLine(color: Colors.white10, strokeWidth: 1),
+                            getDrawingHorizontalLine: (value) => FlLine(
+                              color: corPrincipal.withOpacity(0.16),
+                              strokeWidth: 1,
+                            ),
                           ),
                           titlesData: FlTitlesData(
                             leftTitles: AxisTitles(
@@ -93,7 +104,7 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
                                     value.toInt().toString(),
                                     style: const TextStyle(
                                       color: Colors.white54,
-                                      fontSize: 10,
+                                      fontSize: 13,
                                     ),
                                   );
                                 },
@@ -119,7 +130,7 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
                                       "${partes[1]}/${partes[0]}",
                                       style: const TextStyle(
                                         color: Colors.white70,
-                                        fontSize: 10,
+                                        fontSize: 13,
                                       ),
                                     );
                                   }
@@ -130,7 +141,26 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
                           ),
                           barGroups: dados.asMap().entries.map((e) {
                             int index = e.key;
-                          }),
+                            double valor = double.parse(e.value["total"]);
+
+                            return BarChartGroupData(
+                              x: index,
+                              barRods: [
+                                BarChartRodData(
+                                  toY: valor,
+                                  width: 18,
+                                  color: corPrincipal,
+                                  borderRadius: BorderRadius.circular(6),
+
+                                  backDrawRodData: BackgroundBarChartRodData(
+                                    show: true,
+                                    toY: valor,
+                                    color: corPrincipal.withOpacity(0.1),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
                         ),
                       ),
                     ),

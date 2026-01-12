@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
+import 'package:zeroone/pages/entradas_relatorios_page.dart';
+
+const Color corPrincipal = Color(0xFFBBFB04);
 
 class CrescimentoAnualPage extends StatefulWidget {
   const CrescimentoAnualPage({super.key});
@@ -32,103 +35,160 @@ class _CrescimentoAnualPageState extends State<CrescimentoAnualPage> {
     });
   }
 
+  BoxDecoration neonBox() {
+    return BoxDecoration(
+      color: Colors.black,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: corPrincipal.withOpacity(0.6), width: 1.3),
+      boxShadow: [
+        BoxShadow(
+          color: corPrincipal.withOpacity(0.35),
+          blurRadius: 22,
+          spreadRadius: 2,
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Crescimento Anual")),
+      backgroundColor: const Color(0xFF0B0F14),
+      appBar: AppBar(
+        title: const Text("Crescimento Anual"),
+        backgroundColor: Colors.black,
+        foregroundColor: corPrincipal,
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  const Text(
+                  Text(
                     "Evolução Mensal",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: corPrincipal,
+                      shadows: [
+                        Shadow(
+                          color: corPrincipal.withOpacity(0.6),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
                   Expanded(
-                    child: LineChart(
-                      LineChartData(
-                        minX: 1,
-                        maxX: 12,
-                        minY: 0,
-                        maxY: _getMaxY(),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: neonBox(),
+                      child: LineChart(
+                        LineChartData(
+                          minX: 1,
+                          maxX: 12,
+                          minY: 0,
+                          maxY: _getMaxY(),
 
-                        // REMOVE GRID E BORDAS
-                        gridData: FlGridData(show: false),
-                        borderData: FlBorderData(show: false),
+                          gridData: FlGridData(show: false),
+                          borderData: FlBorderData(show: false),
 
-                        // LEGENDAS DOS EIXOS
-                        titlesData: FlTitlesData(
-                          topTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
+                          titlesData: FlTitlesData(
+                            topTitles: AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            rightTitles: AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
 
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              interval: 1,
-                              reservedSize: 32,
-                              getTitlesWidget: (value, meta) {
-                                const meses = [
-                                  "",
-                                  "Jan",
-                                  "Fev",
-                                  "Mar",
-                                  "Abr",
-                                  "Mai",
-                                  "Jun",
-                                  "Jul",
-                                  "Ago",
-                                  "Set",
-                                  "Out",
-                                  "Nov",
-                                  "Dez",
-                                ];
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                interval: 1,
+                                reservedSize: 30,
+                                getTitlesWidget: (value, meta) {
+                                  const meses = [
+                                    "",
+                                    "Jan",
+                                    "Fev",
+                                    "Mar",
+                                    "Abr",
+                                    "Mai",
+                                    "Jun",
+                                    "Jul",
+                                    "Ago",
+                                    "Set",
+                                    "Out",
+                                    "Nov",
+                                    "Dez",
+                                  ];
 
-                                if (value < 1 || value > 12) {
-                                  return const SizedBox();
-                                }
+                                  if (value < 1 || value > 12) {
+                                    return const SizedBox();
+                                  }
+                                  return Text(
+                                    meses[value.toInt()],
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
 
-                                return Text(
-                                  meses[value.toInt()],
-                                  style: const TextStyle(fontSize: 12),
-                                );
-                              },
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                interval: 10000,
+                                reservedSize: 60,
+                                getTitlesWidget: (value, meta) {
+                                  return Text(
+                                    "R\$ ${value.toInt()}",
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 12,
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                           ),
 
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              interval: 10000, // ➜ intervalo de 10 mil
-                              reservedSize: 60,
-                              getTitlesWidget: (value, meta) {
-                                return Text(
-                                  "R\$ ${value.toInt()}",
-                                  style: const TextStyle(fontSize: 11),
-                                );
-                              },
+                          lineBarsData: [
+                            LineChartBarData(
+                              isCurved: true,
+                              color: corPrincipal,
+                              barWidth: 3,
+                              spots: _buildSpots(),
+                              belowBarData: BarAreaData(
+                                show: true,
+                                gradient: LinearGradient(
+                                  colors: [
+                                    corPrincipal.withOpacity(0.35),
+                                    corPrincipal.withOpacity(0.02),
+                                  ],
+                                  begin: AlignmentGeometry.topCenter,
+                                  end: AlignmentGeometry.bottomCenter,
+                                ),
+                              ),
+                              dotData: FlDotData(
+                                show: true,
+                                getDotPainter: (spot, percent, bar, index) {
+                                  return FlDotCirclePainter(
+                                    radius: 4,
+                                    color: corPrincipal,
+                                    strokeWidth: 2,
+                                    strokeColor: corPrincipal.withOpacity(0.9),
+                                  );
+                                },
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-
-                        // LINHA DO GRÁFICO
-                        lineBarsData: [
-                          LineChartBarData(
-                            isCurved: true,
-                            color: Colors.blue,
-                            barWidth: 3,
-                            dotData: FlDotData(show: true),
-                            spots: _buildSpots(),
-                          ),
-                        ],
                       ),
                     ),
                   ),

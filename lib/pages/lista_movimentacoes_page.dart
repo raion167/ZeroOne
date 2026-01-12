@@ -24,7 +24,6 @@ class _EstoqueMovimentacoesListPageState
   List<dynamic> entradas = [];
   List<dynamic> saidas = [];
 
-  // 🔹 Filtros
   DateTimeRange? filtroData;
   String? filtroUsuario;
   List<String> listaUsuarios = [];
@@ -32,7 +31,6 @@ class _EstoqueMovimentacoesListPageState
   Future<void> carregarMovimentacoes() async {
     setState(() => carregando = true);
     try {
-      // Monta query string com filtros
       String query = "?filtro=1";
       if (filtroUsuario != null && filtroUsuario!.isNotEmpty) {
         query += "&usuario=${Uri.encodeComponent(filtroUsuario!)}";
@@ -46,22 +44,14 @@ class _EstoqueMovimentacoesListPageState
         Uri.parse("http://localhost:8080/app/listar_movimentacoes.php$query"),
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body);
 
-        if (data["success"] == true) {
-          setState(() {
-            entradas = List<dynamic>.from(data["entradas"] ?? []);
-            saidas = List<dynamic>.from(data["saidas"] ?? []);
-            listaUsuarios = List<String>.from(data["usuarios"] ?? []);
-            carregando = false;
-          });
-        } else {
-          throw Exception("Erro no servidor: ${data['message']}");
-        }
-      } else {
-        throw Exception("Erro de conexão: ${response.statusCode}");
-      }
+      setState(() {
+        entradas = List<dynamic>.from(data["entradas"] ?? []);
+        saidas = List<dynamic>.from(data["saidas"] ?? []);
+        listaUsuarios = List<String>.from(data["usuarios"] ?? []);
+        carregando = false;
+      });
     } catch (e) {
       setState(() => carregando = false);
       ScaffoldMessenger.of(
@@ -76,7 +66,19 @@ class _EstoqueMovimentacoesListPageState
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
       initialDateRange: filtroData,
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: ColorScheme.dark(
+              primary: corPrincipal,
+              surface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
+
     if (picked != null) {
       setState(() => filtroData = picked);
       carregarMovimentacoes();
@@ -91,83 +93,93 @@ class _EstoqueMovimentacoesListPageState
 
   @override
   Widget build(BuildContext context) {
-    return BaseScaffold(
-      titulo: "Movimentações de Estoque",
-      nomeUsuario: widget.nomeUsuario,
-      emailUsuario: widget.emailUsuario,
-      corpo: carregando
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Movimentações"),
+        backgroundColor: Colors.black,
+        foregroundColor: corPrincipal,
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: Icon(Icons.arrow_back),
+        ),
+      ),
+      body: carregando
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // 🔹 Filtros
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
+                // 🔹 FILTROS
+                Container(
+                  margin: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: _neonBox(),
                   child: Row(
                     children: [
-                      // Filtro de usuário
                       Expanded(
-                        child: DropdownButton<String>(
+                        child: DropdownButtonFormField<String>(
+                          dropdownColor: Colors.black,
                           value: filtroUsuario,
-                          hint: const Text("Filtrar por usuário"),
-                          isExpanded: true,
+                          hint: const Text(
+                            "Filtrar por usuário",
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                          iconEnabledColor: corPrincipal,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: _inputNeon(),
                           items: listaUsuarios
                               .map(
                                 (u) =>
                                     DropdownMenuItem(value: u, child: Text(u)),
                               )
                               .toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              filtroUsuario = value;
-                              carregarMovimentacoes();
-                            });
+                          onChanged: (v) {
+                            setState(() => filtroUsuario = v);
+                            carregarMovimentacoes();
                           },
                         ),
                       ),
                       const SizedBox(width: 10),
-                      // Filtro de data
                       ElevatedButton.icon(
-                        icon: const Icon(Icons.date_range),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          side: BorderSide(color: corPrincipal),
+                        ),
+                        icon: Icon(Icons.date_range, color: corPrincipal),
                         label: Text(
                           filtroData == null
-                              ? "Filtrar por data"
-                              : "${filtroData!.start.day}/${filtroData!.start.month}/${filtroData!.start.year} - "
-                                    "${filtroData!.end.day}/${filtroData!.end.month}/${filtroData!.end.year}",
+                              ? "Data"
+                              : "${filtroData!.start.day}/${filtroData!.start.month} - ${filtroData!.end.day}/${filtroData!.end.month}",
+                          style: const TextStyle(color: Colors.white),
                         ),
                         onPressed: selecionarPeriodo,
                       ),
                       if (filtroData != null)
                         IconButton(
-                          icon: const Icon(Icons.clear),
+                          icon: const Icon(Icons.clear, color: Colors.red),
                           onPressed: () {
-                            setState(() {
-                              filtroData = null;
-                              carregarMovimentacoes();
-                            });
+                            setState(() => filtroData = null);
+                            carregarMovimentacoes();
                           },
                         ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 10),
 
-                // 🔹 Lista dividida
+                // 🔹 LISTAS
                 Expanded(
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: _MovimentacaoLista(
                           titulo: "Entradas",
-                          cor: Colors.green.shade700,
+                          cor: Colors.greenAccent,
                           movimentacoes: entradas,
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: _MovimentacaoLista(
                           titulo: "Saídas",
-                          cor: Colors.red.shade700,
+                          cor: Colors.redAccent,
                           movimentacoes: saidas,
                         ),
                       ),
@@ -180,6 +192,7 @@ class _EstoqueMovimentacoesListPageState
   }
 }
 
+// 🔹 CARD DE MOVIMENTAÇÃO
 class _MovimentacaoLista extends StatelessWidget {
   final String titulo;
   final Color cor;
@@ -193,15 +206,25 @@ class _MovimentacaoLista extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
+    return Container(
+      margin: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cor.withOpacity(0.9)),
+        boxShadow: [
+          BoxShadow(
+            color: cor.withOpacity(0.5),
+            blurRadius: 18,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
               titulo,
               style: TextStyle(
                 fontSize: 18,
@@ -209,35 +232,58 @@ class _MovimentacaoLista extends StatelessWidget {
                 color: cor,
               ),
             ),
-            const Divider(),
-            Expanded(
-              child: movimentacoes.isEmpty
-                  ? Center(
-                      child: Text(
-                        "Nenhuma movimentação registrada.",
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: movimentacoes.length,
-                      itemBuilder: (context, index) {
-                        final item = movimentacoes[index];
-                        return ListTile(
-                          leading: Icon(Icons.inventory_2, color: cor),
-                          title: Text(item["produto"] ?? "-"),
-                          subtitle: Text(
-                            "Qtd: ${item["quantidade"] ?? "-"}\n"
-                            "Usuário: ${item["usuario"] ?? "-"}\n"
-                            "Data: ${item["data"] ?? "-"}",
-                          ),
-                          isThreeLine: true,
-                        );
-                      },
+          ),
+          const Divider(color: Colors.white12),
+          Expanded(
+            child: movimentacoes.isEmpty
+                ? const Center(
+                    child: Text(
+                      "Nenhuma movimentação",
+                      style: TextStyle(color: Colors.white70),
                     ),
-            ),
-          ],
-        ),
+                  )
+                : ListView.builder(
+                    itemCount: movimentacoes.length,
+                    itemBuilder: (_, i) {
+                      final item = movimentacoes[i];
+                      return ListTile(
+                        leading: Icon(Icons.inventory_2, color: cor),
+                        title: Text(
+                          item["produto"] ?? "-",
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        subtitle: Text(
+                          "Qtd: ${item["quantidade"]}\nUsuário: ${item["usuario"]}\nData: ${item["data"]}",
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                        isThreeLine: true,
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
 }
+
+// 🔹 DECORAÇÕES
+BoxDecoration _neonBox() => BoxDecoration(
+  color: Colors.black,
+  borderRadius: BorderRadius.circular(16),
+  border: Border.all(color: corPrincipal),
+  boxShadow: [BoxShadow(color: corPrincipal.withOpacity(0.4), blurRadius: 16)],
+);
+
+InputDecoration _inputNeon() => InputDecoration(
+  filled: true,
+  fillColor: Colors.black,
+  enabledBorder: OutlineInputBorder(
+    borderSide: BorderSide(color: corPrincipal),
+    borderRadius: BorderRadius.circular(12),
+  ),
+  focusedBorder: OutlineInputBorder(
+    borderSide: BorderSide(color: corPrincipal, width: 2),
+    borderRadius: BorderRadius.circular(12),
+  ),
+);

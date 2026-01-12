@@ -9,6 +9,8 @@ import 'estoque_adicionar_page.dart';
 import 'estoque_movimentacoes_page.dart';
 import 'estoque_relatorios_page.dart';
 
+const Color corPrincipal = Color(0xFFBBFB04);
+
 class ControleEstoquePage extends StatelessWidget {
   final String nomeUsuario;
   final String emailUsuario;
@@ -31,11 +33,12 @@ class ControleEstoquePage extends StatelessWidget {
           crossAxisCount: 2,
           mainAxisSpacing: 16,
           crossAxisSpacing: 16,
+          childAspectRatio: 1.1,
           children: [
             _EstoqueCard(
               icon: Icons.inventory,
               label: "Itens em Estoque",
-              color: Colors.blue,
+              color: corPrincipal,
               onTap: () {
                 Navigator.push(
                   context,
@@ -51,7 +54,7 @@ class ControleEstoquePage extends StatelessWidget {
             _EstoqueCard(
               icon: Icons.add_box,
               label: "Adicionar Item",
-              color: Colors.green,
+              color: corPrincipal,
               onTap: () {
                 Navigator.push(
                   context,
@@ -67,7 +70,7 @@ class ControleEstoquePage extends StatelessWidget {
             _EstoqueCard(
               icon: Icons.swap_horiz,
               label: "Movimentações",
-              color: Colors.orange,
+              color: corPrincipal,
               onTap: () {
                 Navigator.push(
                   context,
@@ -119,26 +122,35 @@ class _EstoqueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: Colors.white,
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 8,
+      color: Colors.black,
+      shadowColor: color.withOpacity(0.6),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadiusGeometry.circular(18),
+        side: BorderSide(color: color.withOpacity(0.9), width: 1.4),
+      ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 48),
-            const SizedBox(height: 10),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 48, color: color),
+              const SizedBox(height: 14),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                  letterSpacing: 0.4,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

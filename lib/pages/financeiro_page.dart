@@ -54,7 +54,7 @@ class FinanceiroPage extends StatelessWidget {
                 );
               },
             ),
-            FinanceiroCardAnimado(
+            /*FinanceiroCardAnimado(
               icon: Icons.bar_chart,
               label: "Demonstrações",
               color: corPrincipal,
@@ -66,7 +66,7 @@ class FinanceiroPage extends StatelessWidget {
                   ),
                 );
               },
-            ),
+            ),*/
             FinanceiroCardAnimado(
               icon: Icons.work,
               label: "Rentabilidade",

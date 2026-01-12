@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
+import 'package:syncfusion_flutter_gauges/gauges.dart';
+import 'package:zeroone/pages/contas_visao_geral.dart';
 
 class DistribuicaoCategoriaPage extends StatefulWidget {
   const DistribuicaoCategoriaPage({super.key});
@@ -16,13 +18,12 @@ class _DistribuicaoCategoriaPageState extends State<DistribuicaoCategoriaPage> {
   List dados = [];
 
   final List<Color> cores = [
-    Colors.blue,
-    Colors.orange,
-    Colors.green,
-    Colors.red,
-    Colors.purple,
-    Colors.cyan,
-    Colors.brown,
+    Colors.cyanAccent,
+    Colors.blueAccent,
+    Colors.tealAccent,
+    Colors.greenAccent,
+    Colors.lightBlueAccent,
+    Colors.purpleAccent,
   ];
 
   @override
@@ -52,10 +53,30 @@ class _DistribuicaoCategoriaPageState extends State<DistribuicaoCategoriaPage> {
     return total;
   }
 
+  BoxDecoration neonBox() {
+    return BoxDecoration(
+      color: Colors.black,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: corPrincipal.withOpacity(0.6), width: 1.2),
+      boxShadow: [
+        BoxShadow(
+          color: corPrincipal.withOpacity(0.35),
+          blurRadius: 20,
+          spreadRadius: 2,
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Distribuição por Categoria")),
+      backgroundColor: const Color(0xFF0B0F14),
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: corPrincipal,
+        title: const Text("Distribuição por Categoria"),
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : dados.isEmpty
@@ -64,29 +85,36 @@ class _DistribuicaoCategoriaPageState extends State<DistribuicaoCategoriaPage> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
 
-                  // 🔥 Gráfico
-                  SizedBox(
-                    height: 300,
+                  // CARD DO GRAFICO
+                  Container(
+                    height: 500,
+                    padding: const EdgeInsets.all(16),
+                    decoration: neonBox(),
                     child: PieChart(
                       PieChartData(
-                        sectionsSpace: 2,
-                        centerSpaceRadius: 40,
+                        sectionsSpace: 3,
+                        centerSpaceRadius: 55,
                         startDegreeOffset: -90,
-                        // 🔥 Animação suave
                         pieTouchData: PieTouchData(enabled: true),
                         sections: gerarFatias(),
                       ),
-                      swapAnimationDuration: const Duration(milliseconds: 800),
-                      swapAnimationCurve: Curves.easeOutCubic,
+                      swapAnimationDuration: const Duration(milliseconds: 900),
+                      swapAnimationCurve: Curves.easeInOutCubic,
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
-                  // 🔥 Legenda lateral
-                  Expanded(child: buildLegenda()),
+                  // LEGENDA
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: neonBox(),
+                      child: buildLegenda(),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -104,13 +132,14 @@ class _DistribuicaoCategoriaPageState extends State<DistribuicaoCategoriaPage> {
 
       return PieChartSectionData(
         value: valor,
-        radius: 65,
+        radius: 70,
         color: cores[i % cores.length],
         title: "${percentual.toStringAsFixed(1)}%",
         titleStyle: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: Colors.black,
+          shadows: [Shadow(color: Colors.white, blurRadius: 6)],
         ),
       );
     });
@@ -118,37 +147,46 @@ class _DistribuicaoCategoriaPageState extends State<DistribuicaoCategoriaPage> {
 
   /// 🔹 Legenda com cor + categoria + valor total
   Widget buildLegenda() {
-    return ListView.builder(
+    return ListView.separated(
       itemCount: dados.length,
+      separatorBuilder: (_, __) => const Divider(color: Colors.white10),
       itemBuilder: (_, i) {
         final item = dados[i];
         final valor = double.tryParse(item["total"].toString()) ?? 0;
 
         return Row(
           children: [
-            // bolinha de cor
             Container(
-              width: 18,
-              height: 18,
+              width: 14,
+              height: 14,
               decoration: BoxDecoration(
                 color: cores[i % cores.length],
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: cores[i % cores.length].withOpacity(0.7),
+                    blurRadius: 8,
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 10),
 
-            // Categoria
+            //CATEGORIA
             Expanded(
               child: Text(
                 item["categoria"],
-                style: const TextStyle(fontSize: 16),
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
             ),
 
-            // Valor
+            // VALOR
             Text(
               "R\$ ${valor.toStringAsFixed(2)}",
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         );

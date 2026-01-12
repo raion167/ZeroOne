@@ -81,11 +81,17 @@ class _EstoqueListaPageState extends State<EstoqueListaPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BaseScaffold(
-      titulo: "Itens em Estoque",
-      nomeUsuario: widget.nomeUsuario,
-      emailUsuario: widget.emailUsuario,
-      corpo: carregando
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: corPrincipal,
+        title: const Text("Itens em Estoque"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: carregando
           ? const Center(child: CircularProgressIndicator())
           : produtos.isEmpty
           ? const Center(child: Text("Nenhum produto encontrado."))
@@ -95,45 +101,30 @@ class _EstoqueListaPageState extends State<EstoqueListaPage> {
               itemBuilder: (context, index) {
                 final item = produtos[index];
                 return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 6),
-                  elevation: 3,
+                  color: Colors.black,
+                  shadowColor: corPrincipal.withOpacity(0.6),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: corPrincipal.withOpacity(0.9),
+                      width: 1.4,
+                    ),
                   ),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: Colors.blue.shade100,
+                      backgroundColor: corPrincipal,
                       child: const Icon(Icons.inventory, color: Colors.black),
                     ),
                     title: Text(
                       item["nome"],
                       style: const TextStyle(
+                        color: corPrincipal,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
                       ),
                     ),
                     subtitle: Text(
                       "Quantidade: ${item["quantidade"]} | Preço: R\$ ${item["preco"]}",
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (valor) {
-                        if (valor == "editar") {
-                          // 🔹 Aqui você pode abrir a tela de edição futuramente
-                        } else if (valor == "excluir") {
-                          deletarProduto(item["id"]);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: "editar",
-                          child: Text("Editar"),
-                        ),
-                        const PopupMenuItem(
-                          value: "excluir",
-                          child: Text("Excluir"),
-                        ),
-                      ],
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
                 );

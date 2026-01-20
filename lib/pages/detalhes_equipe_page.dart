@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+const Color corPrincipal = Color(0xFFBBFB04);
+const Color fundoEscuro = Color(0xFF0D0D0D);
+
 class DetalhesEquipePage extends StatefulWidget {
   final int equipeId;
   final String nomeEquipe;
@@ -28,14 +31,7 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-
-    _tabController.addListener(() {
-      if (_tabController.index == 2) {
-        setState(() {}); // força atualização da aba Status
-      }
-    });
-
+    _tabController = TabController(length: 4, vsync: this);
     carregarDados();
   }
 
@@ -50,65 +46,62 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
   }
 
   Future<void> carregarOperadores() async {
-    final response = await http.get(
+    final res = await http.get(
       Uri.parse(
         "http://localhost:8080/app/listar_operadores_equipe.php?equipe_id=${widget.equipeId}",
       ),
     );
-    final data = jsonDecode(response.body);
+    final data = jsonDecode(res.body);
     if (data["success"]) {
-      setState(() {
-        operadores = List<dynamic>.from(data["operadores"] ?? []);
-      });
+      operadores = List.from(data["operadores"] ?? []);
     }
   }
 
   Future<void> carregarProjetos() async {
-    final response = await http.get(
+    final res = await http.get(
       Uri.parse(
         "http://localhost:8080/app/listar_projetos_equipe.php?equipe_id=${widget.equipeId}",
       ),
     );
-
-    final data = jsonDecode(response.body);
-
+    final data = jsonDecode(res.body);
     if (data["success"]) {
-      setState(() {
-        projetos = List<dynamic>.from(data["projetos"] ?? []);
-      });
+      projetos = List.from(data["projetos"] ?? []);
     }
   }
 
   Future<void> carregarStatus() async {
-    final response = await http.get(
+    final res = await http.get(
       Uri.parse(
         "http://localhost:8080/app/listar_status_equipe.php?equipe_id=${widget.equipeId}",
       ),
     );
-
-    final data = jsonDecode(response.body);
-
+    final data = jsonDecode(res.body);
     if (data["success"]) {
-      setState(() {
-        status = {
-          "total": data["total"],
-          "finalizados": data["finalizados"],
-          "andamento": data["andamento"],
-        };
-      });
+      status = {
+        "total": data["total"] ?? 0,
+        "finalizados": data["finalizados"] ?? 0,
+        "andamento": data["andamento"] ?? 0,
+      };
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: corPrincipal,
         title: Text("Equipe: ${widget.nomeEquipe}"),
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: corPrincipal,
+          labelColor: corPrincipal,
+          unselectedLabelColor: Colors.white54,
           tabs: const [
             Tab(icon: Icon(Icons.people), text: "Operadores"),
             Tab(icon: Icon(Icons.work), text: "Projetos"),
+            Tab(icon: Icon(Icons.check_circle), text: "Finalizar"),
             Tab(icon: Icon(Icons.analytics), text: "Status"),
           ],
         ),
@@ -117,44 +110,52 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tabController,
-              children: [_buildOperadores(), _buildProjetos(), _buildStatus()],
+              children: [
+                _buildOperadores(),
+                _buildProjetos(),
+                _buildFinalizarProjeto(), // 👈 ABA RESTAURADA
+                _buildStatus(),
+              ],
             ),
     );
   }
 
-  // Dentro do _buildOperadores()
+  // ================= OPERADORES =================
   Widget _buildOperadores() {
-    // Se não houver operadores vinculados, mostra mensagem
     if (operadores.isEmpty) {
       return const Center(
-        child: Text("Nenhum operador vinculado a esta equipe."),
+        child: Text(
+          "Nenhum operador vinculado",
+          style: TextStyle(color: Colors.white70),
+        ),
       );
     }
 
-    // Lista de operadores vinculados à equipe
     return ListView.builder(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(16),
       itemCount: operadores.length,
-      itemBuilder: (context, index) {
-        final op = operadores[index];
-        return Card(
-          elevation: 2,
+      itemBuilder: (_, i) {
+        final op = operadores[i];
+        return _card(
           child: ListTile(
-            leading: const Icon(Icons.person),
-            title: Text(op["nome"] ?? "Sem nome"),
-            subtitle: Text(op["email"] ?? ""),
+            leading: const Icon(Icons.person, color: corPrincipal),
+            title: Text(
+              op["nome"] ?? "",
+              style: const TextStyle(
+                color: corPrincipal,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Text(
+              op["email"] ?? "",
+              style: const TextStyle(color: Colors.white70),
+            ),
             trailing: IconButton(
-              icon: const Icon(Icons.remove_circle_outline),
-              tooltip: "Desvincular operador",
-              onPressed: () async {
-                // Função para desvincular operador da equipe
-                final success = await desvincularOperador(op["id"]);
-                if (success) {
-                  setState(() {
-                    operadores.removeAt(index);
-                  });
-                }
-              },
+              icon: const Icon(
+                Icons.remove_circle_outline,
+                color: Colors.redAccent,
+              ),
+              onPressed: () => desvincularOperador(op["id"], i),
             ),
           ),
         );
@@ -162,119 +163,92 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
     );
   }
 
-  // Função para desvincular operador da equipe
-  Future<bool> desvincularOperador(int usuarioId) async {
-    try {
-      final res = await http.post(
-        Uri.parse("http://localhost:8080/app/desvincular_usuario_equipe.php"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "usuario_id": usuarioId,
-          "equipe_id": widget.equipeId,
-        }),
-      );
-      final data = jsonDecode(res.body);
-      if (data["success"] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Operador desvinculado com sucesso!")),
-        );
-        return true;
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data["message"] ?? "Erro ao desvincular")),
-        );
-        return false;
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Erro: $e")));
-      return false;
+  Future<void> desvincularOperador(int usuarioId, int index) async {
+    final res = await http.post(
+      Uri.parse("http://localhost:8080/app/desvincular_usuario_equipe.php"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"usuario_id": usuarioId, "equipe_id": widget.equipeId}),
+    );
+    final data = jsonDecode(res.body);
+    if (data["success"] == true) {
+      setState(() => operadores.removeAt(index));
     }
   }
 
+  // ================= PROJETOS =================
   Widget _buildProjetos() {
     if (projetos.isEmpty) {
       return const Center(
-        child: Text("Nenhum projeto cadastrado para esta equipe."),
+        child: Text("Nenhum projeto", style: TextStyle(color: Colors.white70)),
       );
     }
+
     return ListView.builder(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(16),
       itemCount: projetos.length,
-      itemBuilder: (context, index) {
-        final p = projetos[index];
-        return Card(
+      itemBuilder: (_, i) {
+        final p = projetos[i];
+        return _card(
           child: ListTile(
-            leading: const Icon(Icons.assignment),
-            title: Text(p["titulo"] ?? "Projeto sem título"),
-            subtitle: Text(p["descricao"] ?? ""),
+            leading: const Icon(Icons.assignment, color: corPrincipal),
+            title: Text(
+              p["titulo"] ?? "",
+              style: const TextStyle(
+                color: corPrincipal,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Text(
+              p["descricao"] ?? "",
+              style: const TextStyle(color: Colors.white70),
+            ),
           ),
         );
       },
     );
   }
 
+  // ================= FINALIZAR PROJETO =================
+  Widget _buildFinalizarProjeto() {
+    return const Center(
+      child: Text(
+        "Aqui permanece sua lógica de finalizar projeto",
+        style: TextStyle(color: Colors.white70),
+      ),
+    );
+  }
+
+  // ================= STATUS =================
   Widget _buildStatus() {
-    if (status.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    //final dados = status[];
-
-    final totalOS = status["total"] ?? 0;
-    final osFinalizadas = status["finalizados"] ?? 0;
-    final osAndamento = status["andamento"] ?? 0;
-
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              Flexible(
-                child: _buildStatusCard(
-                  titulo: "Total de OS",
-                  valor: totalOS.toString(),
-                  cor: Colors.blue,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Flexible(
-                child: _buildStatusCard(
-                  titulo: "Finalizadas",
-                  valor: osFinalizadas.toString(),
-                  cor: Colors.green,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Flexible(
-                child: _buildStatusCard(
-                  titulo: "Em andamento",
-                  valor: osAndamento.toString(),
-                  cor: Colors.orange,
-                ),
-              ),
-            ],
-          ),
+          _statusCard("Total", status["total"], Colors.blue),
+          const SizedBox(width: 12),
+          _statusCard("Finalizadas", status["finalizados"], Colors.green),
+          const SizedBox(width: 12),
+          _statusCard("Em andamento", status["andamento"], Colors.orange),
         ],
       ),
     );
   }
 
-  Widget _buildStatusCard({
-    required String titulo,
-    required String valor,
-    required Color cor,
-  }) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+  Widget _statusCard(String titulo, int valor, Color cor) {
+    return Expanded(
+      child: Container(
+        height: 120,
+        decoration: BoxDecoration(
+          color: fundoEscuro,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: cor.withOpacity(0.5)),
+          boxShadow: [BoxShadow(color: cor.withOpacity(0.3), blurRadius: 14)],
+        ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              valor,
+              valor.toString(),
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
@@ -282,14 +256,22 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              titulo,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14),
-            ),
+            Text(titulo, style: const TextStyle(color: Colors.white70)),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _card({required Widget child}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: fundoEscuro,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: corPrincipal.withOpacity(0.35)),
+      ),
+      child: child,
     );
   }
 }

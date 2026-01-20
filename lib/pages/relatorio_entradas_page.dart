@@ -6,6 +6,8 @@ import 'package:syncfusion_flutter_gauges/gauges.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'menu_lateral.dart';
 
+const Color corPrincipal = Color(0xffbbfb04);
+
 class RelatorioEntradasPage extends StatefulWidget {
   final String nomeUsuario;
   final String emailUsuario;
@@ -23,17 +25,22 @@ class RelatorioEntradasPage extends StatefulWidget {
 class _RelatorioEntradasPageState extends State<RelatorioEntradasPage> {
   bool carregando = true;
   List<dynamic> relatorio = [];
+
   String tipoGrafico = "Colunas";
   String campoX = "produto";
   String campoY = "quantidade";
+
   final camposDisponiveis = ["produto", "quantidade", "usuario"];
+
   DateTimeRange? filtroData;
   String? filtroUsuario;
   List<String> usuarios = [];
+
   bool modoComparativo = false;
 
   Future<void> carregarRelatorio() async {
     setState(() => carregando = true);
+
     String query = "";
     if (filtroUsuario != null) query += "&usuario=$filtroUsuario";
     if (filtroData != null) {
@@ -54,7 +61,7 @@ class _RelatorioEntradasPageState extends State<RelatorioEntradasPage> {
         carregando = false;
       });
     } else {
-      setState(() => carregando = false);
+      carregando = false;
     }
   }
 
@@ -71,238 +78,330 @@ class _RelatorioEntradasPageState extends State<RelatorioEntradasPage> {
       lastDate: DateTime.now(),
       initialDateRange: filtroData,
     );
+
     if (picked != null) {
       setState(() => filtroData = picked);
       carregarRelatorio();
     }
   }
 
-  /// ====== GRÁFICO PRINCIPAL ======
-  Widget _buildGraficoPrincipal() {
+  // ===================== GRAFICO PRINCIPAL =====================
+  Widget _graficoPrincipal() {
     switch (tipoGrafico) {
       case "Linhas":
         return SfCartesianChart(
-          title: ChartTitle(text: "Relatório de Entradas"),
-          primaryXAxis: CategoryAxis(),
+          backgroundColor: Colors.transparent,
+          primaryXAxis: CategoryAxis(
+            labelStyle: const TextStyle(color: corPrincipal),
+            axisLine: const AxisLine(color: corPrincipal),
+            majorGridLines: const MajorGridLines(width: 0),
+          ),
+          primaryYAxis: NumericAxis(
+            labelStyle: const TextStyle(color: corPrincipal),
+            majorGridLines: MajorGridLines(
+              color: corPrincipal.withOpacity(0.15),
+            ),
+          ),
           series: [
             LineSeries<dynamic, String>(
               dataSource: relatorio,
-              xValueMapper: (d, _) => d[campoX]?.toString() ?? "",
-              yValueMapper: (d, _) => num.tryParse(d[campoY].toString()) ?? 0,
+              color: corPrincipal,
               markerSettings: const MarkerSettings(isVisible: true),
-            ),
-          ],
-        );
-      case "Colunas":
-        return SfCartesianChart(
-          title: ChartTitle(text: "Relatório de Entradas"),
-          primaryXAxis: CategoryAxis(),
-          series: [
-            ColumnSeries<dynamic, String>(
-              dataSource: relatorio,
-              xValueMapper: (d, _) => d[campoX]?.toString() ?? "",
+              xValueMapper: (d, _) => d[campoX].toString(),
               yValueMapper: (d, _) => num.tryParse(d[campoY].toString()) ?? 0,
-              dataLabelSettings: const DataLabelSettings(isVisible: true),
-              color: Colors.greenAccent.shade700,
             ),
           ],
         );
+
       case "Pizza":
         return SfCircularChart(
-          title: ChartTitle(text: "Distribuição de Entradas"),
-          legend: const Legend(isVisible: true),
+          legend: const Legend(
+            isVisible: true,
+            textStyle: TextStyle(color: corPrincipal),
+          ),
           series: [
             PieSeries<dynamic, String>(
               dataSource: relatorio,
-              xValueMapper: (d, _) => d[campoX]?.toString() ?? "",
+              xValueMapper: (d, _) => d[campoX].toString(),
               yValueMapper: (d, _) => num.tryParse(d[campoY].toString()) ?? 0,
-              dataLabelSettings: const DataLabelSettings(isVisible: true),
+              dataLabelSettings: const DataLabelSettings(
+                isVisible: true,
+                textStyle: TextStyle(color: corPrincipal),
+              ),
             ),
           ],
         );
+
       case "KPI":
         final total = relatorio.fold<num>(
           0,
           (sum, item) => sum + (num.tryParse(item[campoY].toString()) ?? 0),
         );
-        return Center(
-          child: SfRadialGauge(
-            title: GaugeTitle(text: "KPI - Total de ${campoY.toUpperCase()}"),
-            axes: [
-              RadialAxis(
-                minimum: 0,
-                maximum: total * 1.5,
-                pointers: [
-                  RangePointer(value: total.toDouble(), color: Colors.green),
-                ],
-                annotations: [
-                  GaugeAnnotation(
-                    widget: Text(
-                      total.toStringAsFixed(0),
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
+
+        return SfRadialGauge(
+          axes: [
+            RadialAxis(
+              minimum: 0,
+              maximum: total * 1.5,
+              axisLineStyle: const AxisLineStyle(color: Colors.white24),
+              pointers: [
+                RangePointer(value: total.toDouble(), color: corPrincipal),
+              ],
+              annotations: [
+                GaugeAnnotation(
+                  widget: Text(
+                    total.toStringAsFixed(0),
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: corPrincipal,
                     ),
                   ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         );
+
       default:
-        return const Center(child: Text("Selecione um tipo de gráfico"));
+        return SfCartesianChart(
+          backgroundColor: Colors.transparent,
+          primaryXAxis: CategoryAxis(
+            labelStyle: const TextStyle(color: corPrincipal),
+          ),
+          primaryYAxis: NumericAxis(
+            labelStyle: const TextStyle(color: corPrincipal),
+          ),
+          series: [
+            ColumnSeries<dynamic, String>(
+              dataSource: relatorio,
+              color: corPrincipal,
+              dataLabelSettings: const DataLabelSettings(
+                isVisible: true,
+                textStyle: TextStyle(color: corPrincipal),
+              ),
+              xValueMapper: (d, _) => d[campoX].toString(),
+              yValueMapper: (d, _) => num.tryParse(d[campoY].toString()) ?? 0,
+            ),
+          ],
+        );
     }
   }
 
-  /// ====== GRÁFICO COMPARATIVO ======
-  Widget _buildGraficoComparativo() {
-    Map<String, num> entradasPorUsuario = {};
+  // ===================== COMPARATIVO =====================
+  Widget _graficoComparativo() {
+    final Map<String, num> dados = {};
+
     for (var item in relatorio) {
-      String usuario = item["usuario"] ?? "Desconhecido";
-      num qtd = num.tryParse(item["quantidade"].toString()) ?? 0;
-      entradasPorUsuario[usuario] = (entradasPorUsuario[usuario] ?? 0) + qtd;
+      final usuario = item["usuario"] ?? "N/D";
+      dados[usuario] =
+          (dados[usuario] ?? 0) +
+          (num.tryParse(item["quantidade"].toString()) ?? 0);
     }
 
-    final dados = entradasPorUsuario.entries
+    final lista = dados.entries
         .map((e) => {"usuario": e.key, "total": e.value})
         .toList();
 
     return SfCartesianChart(
-      title: ChartTitle(text: "Comparativo de Entradas por Usuário"),
-      primaryXAxis: CategoryAxis(),
-      legend: const Legend(isVisible: false),
+      backgroundColor: Colors.black,
+      primaryXAxis: CategoryAxis(
+        labelStyle: const TextStyle(color: corPrincipal),
+      ),
+      primaryYAxis: NumericAxis(
+        labelStyle: const TextStyle(color: corPrincipal),
+      ),
       series: [
         ColumnSeries<dynamic, String>(
-          dataSource: dados,
+          dataSource: lista,
+          color: corPrincipal,
+          dataLabelSettings: const DataLabelSettings(
+            isVisible: true,
+            textStyle: TextStyle(color: corPrincipal),
+          ),
           xValueMapper: (d, _) => d["usuario"].toString(),
           yValueMapper: (d, _) => d["total"],
-          dataLabelSettings: const DataLabelSettings(isVisible: true),
-          color: Colors.greenAccent.shade700,
         ),
       ],
     );
   }
 
-  /// ====== INTERFACE ======
+  // ===================== UI =====================
   @override
   Widget build(BuildContext context) {
-    return BaseScaffold(
-      titulo: "Relatório de Entradas",
-      nomeUsuario: widget.nomeUsuario,
-      emailUsuario: widget.emailUsuario,
-      corpo: carregando
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      DropdownButton<String>(
-                        value: tipoGrafico,
-                        items: ["Linhas", "Colunas", "Pizza", "KPI"]
-                            .map(
-                              (t) => DropdownMenuItem(
-                                value: t,
-                                child: Text("Gráfico de $t"),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) => setState(() => tipoGrafico = v!),
-                      ),
-                      DropdownButton<String>(
-                        value: campoX,
-                        items: camposDisponiveis
-                            .map(
-                              (f) => DropdownMenuItem(
-                                value: f,
-                                child: Text("Eixo X: $f"),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) => setState(() => campoX = v!),
-                      ),
-                      DropdownButton<String>(
-                        value: campoY,
-                        items: camposDisponiveis
-                            .map(
-                              (f) => DropdownMenuItem(
-                                value: f,
-                                child: Text("Eixo Y: $f"),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) => setState(() => campoY = v!),
-                      ),
-                      DropdownButton<String>(
-                        hint: const Text("Usuário"),
-                        value: filtroUsuario,
-                        items: usuarios
-                            .map(
-                              (u) => DropdownMenuItem(value: u, child: Text(u)),
-                            )
-                            .toList(),
-                        onChanged: (v) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+
+      // ✅ APPBAR COM BOTÃO DE VOLTAR (PADRÃO RELATÓRIO DE PERDAS)
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: corPrincipal),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          "Relatório de Entradas",
+          style: TextStyle(color: corPrincipal, fontWeight: FontWeight.bold),
+        ),
+      ),
+
+      // ✅ BASESCAFFOLD APENAS COMO BODY
+      body: BaseScaffold(
+        titulo: "",
+        nomeUsuario: widget.nomeUsuario,
+        emailUsuario: widget.emailUsuario,
+        corpo: carregando
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  /// FILTROS
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        _dropdown(tipoGrafico, [
+                          "Linhas",
+                          "Colunas",
+                          "Pizza",
+                          "KPI",
+                        ], (v) => setState(() => tipoGrafico = v)),
+                        _dropdown(
+                          campoX,
+                          camposDisponiveis,
+                          (v) => setState(() => campoX = v),
+                        ),
+                        _dropdown(
+                          campoY,
+                          camposDisponiveis,
+                          (v) => setState(() => campoY = v),
+                        ),
+                        _dropdown(filtroUsuario, usuarios, (v) {
                           setState(() => filtroUsuario = v);
                           carregarRelatorio();
-                        },
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: selecionarPeriodo,
-                        icon: const Icon(Icons.date_range),
-                        label: const Text("Data"),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () =>
-                            setState(() => modoComparativo = !modoComparativo),
-                        icon: const Icon(Icons.compare_arrows),
-                        label: Text(
-                          modoComparativo
-                              ? "Ver Visão Geral"
-                              : "Comparar Usuários",
+                        }, hint: "Usuário"),
+
+                        /// BOTÃO DATA
+                        ElevatedButton.icon(
+                          onPressed: selecionarPeriodo,
+                          icon: const Icon(
+                            Icons.date_range,
+                            color: Colors.black,
+                          ),
+                          label: const Text(
+                            "Data",
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: corPrincipal,
+                            elevation: 8,
+                            shadowColor: corPrincipal.withOpacity(0.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: StaggeredGrid.count(
-                      crossAxisCount: 6,
-                      children: [
-                        StaggeredGridTile.fit(
-                          crossAxisCellCount: 6,
-                          child: GestureDetector(
-                            child: Container(
-                              height: 400,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black12,
-                                    blurRadius: 6,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
-                              ),
-                              child: modoComparativo
-                                  ? _buildGraficoComparativo()
-                                  : _buildGraficoPrincipal(),
+
+                        /// BOTÃO COMPARAR
+                        ElevatedButton.icon(
+                          onPressed: () => setState(
+                            () => modoComparativo = !modoComparativo,
+                          ),
+                          icon: const Icon(Icons.compare, color: Colors.black),
+                          label: Text(
+                            modoComparativo ? "Visão Geral" : "Comparar",
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: corPrincipal,
+                            elevation: 8,
+                            shadowColor: corPrincipal.withOpacity(0.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
                             ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ],
-            ),
+
+                  /// CARD DO GRÁFICO (EXATAMENTE IGUAL AO RELATÓRIO DE PERDAS)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: corPrincipal.withOpacity(0.4),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: corPrincipal.withOpacity(0.15),
+                              blurRadius: 18,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        child: modoComparativo
+                            ? _graficoComparativo()
+                            : _graficoPrincipal(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  // ===================== DROPDOWN PADRÃO =====================
+  Widget _dropdown(
+    String? value,
+    List<String> itens,
+    Function(String) onChanged, {
+    String? hint,
+  }) {
+    return SizedBox(
+      width: 180,
+      child: DropdownButtonFormField<String>(
+        value: value,
+        hint: hint != null
+            ? Text(hint, style: const TextStyle(color: corPrincipal))
+            : null,
+        dropdownColor: Colors.black,
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.black,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: corPrincipal.withOpacity(0.5)),
+          ),
+        ),
+        style: const TextStyle(color: corPrincipal),
+        items: itens
+            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+            .toList(),
+        onChanged: (v) => onChanged(v!),
+      ),
     );
   }
 }

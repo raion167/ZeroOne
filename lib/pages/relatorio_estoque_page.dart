@@ -6,6 +6,8 @@ import 'package:syncfusion_flutter_gauges/gauges.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'menu_lateral.dart';
 
+const Color corPrincipal = Color(0xFFBBFB04);
+
 class RelatorioEstoquePage extends StatefulWidget {
   final String nomeUsuario;
   final String emailUsuario;
@@ -23,26 +25,38 @@ class RelatorioEstoquePage extends StatefulWidget {
 class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
   bool carregando = true;
   List<dynamic> relatorio = [];
+
   String tipoGrafico = "Colunas";
   String campoX = "produto";
   String campoY = "quantidade";
+
   final camposDisponiveis = ["produto", "quantidade", "usuario"];
+
   DateTimeRange? filtroData;
   String? filtroUsuario;
   List<String> usuarios = [];
 
+  @override
+  void initState() {
+    super.initState();
+    carregarRelatorio();
+  }
+
   Future<void> carregarRelatorio() async {
     setState(() => carregando = true);
+
     String query = "";
     if (filtroUsuario != null) query += "&usuario=$filtroUsuario";
     if (filtroData != null) {
       query +=
-          "&data_inicio=${filtroData!.start.toIso8601String()}&data_fim=${filtroData!.end.toIso8601String()}";
+          "&data_inicio=${filtroData!.start.toIso8601String()}"
+          "&data_fim=${filtroData!.end.toIso8601String()}";
     }
 
     final response = await http.get(
       Uri.parse("http://localhost:8080/app/relatorio_estoque.php?$query"),
     );
+
     final data = jsonDecode(response.body);
 
     if (data["success"] == true) {
@@ -56,12 +70,6 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    carregarRelatorio();
-  }
-
   Future<void> selecionarPeriodo() async {
     final picked = await showDateRangePicker(
       context: context,
@@ -69,6 +77,7 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
       lastDate: DateTime.now(),
       initialDateRange: filtroData,
     );
+
     if (picked != null) {
       setState(() => filtroData = picked);
       carregarRelatorio();
@@ -79,191 +88,274 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
     switch (tipoGrafico) {
       case "Linhas":
         return SfCartesianChart(
-          title: ChartTitle(text: "Relatório de Estoque"),
-          primaryXAxis: CategoryAxis(),
+          backgroundColor: Colors.black,
+          title: ChartTitle(
+            text: "Relatório de Estoque",
+            textStyle: TextStyle(color: corPrincipal),
+          ),
+          primaryXAxis: CategoryAxis(
+            labelStyle: TextStyle(color: corPrincipal),
+            axisLine: AxisLine(color: corPrincipal),
+            majorGridLines: const MajorGridLines(width: 0),
+          ),
+          primaryYAxis: NumericAxis(
+            labelStyle: TextStyle(color: corPrincipal),
+            majorGridLines: MajorGridLines(
+              color: corPrincipal.withOpacity(0.15),
+            ),
+          ),
           series: [
             LineSeries<dynamic, String>(
               dataSource: relatorio,
               xValueMapper: (d, _) => d[campoX]?.toString() ?? "",
               yValueMapper: (d, _) => num.tryParse(d[campoY].toString()) ?? 0,
+              color: corPrincipal,
               markerSettings: const MarkerSettings(isVisible: true),
             ),
           ],
         );
+
       case "Colunas":
         return SfCartesianChart(
-          title: ChartTitle(text: "Relatório de Estoque"),
-          primaryXAxis: CategoryAxis(),
+          backgroundColor: Colors.black,
+          title: ChartTitle(
+            text: "Relatório de Estoque",
+            textStyle: TextStyle(color: corPrincipal),
+          ),
+          primaryXAxis: CategoryAxis(
+            labelStyle: TextStyle(color: corPrincipal),
+            axisLine: AxisLine(color: corPrincipal),
+            majorGridLines: const MajorGridLines(width: 0),
+          ),
+          primaryYAxis: NumericAxis(
+            labelStyle: TextStyle(color: corPrincipal),
+            axisLine: AxisLine(color: corPrincipal),
+            majorGridLines: MajorGridLines(
+              color: corPrincipal.withOpacity(0.15),
+            ),
+          ),
           series: [
             ColumnSeries<dynamic, String>(
               dataSource: relatorio,
               xValueMapper: (d, _) => d[campoX]?.toString() ?? "",
               yValueMapper: (d, _) => num.tryParse(d[campoY].toString()) ?? 0,
-              dataLabelSettings: const DataLabelSettings(isVisible: true),
+              color: corPrincipal,
+              dataLabelSettings: DataLabelSettings(
+                isVisible: true,
+                textStyle: TextStyle(color: corPrincipal),
+              ),
             ),
           ],
         );
+
       case "Pizza":
         return SfCircularChart(
-          title: ChartTitle(text: "Distribuição de Estoque"),
-          legend: const Legend(isVisible: true),
+          backgroundColor: Colors.black,
+          title: ChartTitle(
+            text: "Distribuição de Estoque",
+            textStyle: TextStyle(color: corPrincipal),
+          ),
+          legend: Legend(
+            isVisible: true,
+            textStyle: TextStyle(color: corPrincipal),
+          ),
           series: [
             PieSeries<dynamic, String>(
               dataSource: relatorio,
               xValueMapper: (d, _) => d[campoX]?.toString() ?? "",
               yValueMapper: (d, _) => num.tryParse(d[campoY].toString()) ?? 0,
-              dataLabelSettings: const DataLabelSettings(isVisible: true),
+              dataLabelSettings: DataLabelSettings(
+                isVisible: true,
+                textStyle: TextStyle(color: corPrincipal),
+              ),
             ),
           ],
         );
+
       case "KPI":
         final total = relatorio.fold<num>(
           0,
           (sum, item) => sum + (num.tryParse(item[campoY].toString()) ?? 0),
         );
-        return Center(
-          child: SfRadialGauge(
-            title: GaugeTitle(text: "KPI - Total $campoY"),
-            axes: [
-              RadialAxis(
-                minimum: 0,
-                maximum: total * 1.5,
-                pointers: [
-                  RangePointer(value: total.toDouble(), color: Colors.blue),
-                ],
-                annotations: [
-                  GaugeAnnotation(
-                    widget: Text(
-                      total.toStringAsFixed(0),
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      default:
-        return const Center(child: Text("Selecione um tipo de gráfico"));
-    }
-  }
 
-  @override
-  Widget build(BuildContext context) {
-    return BaseScaffold(
-      titulo: "Relatório de Estoque",
-      nomeUsuario: widget.nomeUsuario,
-      emailUsuario: widget.emailUsuario,
-      corpo: carregando
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButton<String>(
-                          value: tipoGrafico,
-                          items: ["Linhas", "Colunas", "Pizza", "KPI"]
-                              .map(
-                                (t) => DropdownMenuItem(
-                                  value: t,
-                                  child: Text("Gráfico de $t"),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) => setState(() => tipoGrafico = v!),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: DropdownButton<String>(
-                          value: campoX,
-                          items: camposDisponiveis
-                              .map(
-                                (f) => DropdownMenuItem(
-                                  value: f,
-                                  child: Text("Eixo X: $f"),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) => setState(() => campoX = v!),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: DropdownButton<String>(
-                          value: campoY,
-                          items: camposDisponiveis
-                              .map(
-                                (f) => DropdownMenuItem(
-                                  value: f,
-                                  child: Text("Eixo Y: $f"),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) => setState(() => campoY = v!),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      DropdownButton<String>(
-                        hint: const Text("Usuário"),
-                        value: filtroUsuario,
-                        items: usuarios
-                            .map(
-                              (u) => DropdownMenuItem(value: u, child: Text(u)),
-                            )
-                            .toList(),
-                        onChanged: (v) {
-                          setState(() => filtroUsuario = v);
-                          carregarRelatorio();
-                        },
-                      ),
-                      const SizedBox(width: 10),
-                      ElevatedButton.icon(
-                        onPressed: selecionarPeriodo,
-                        icon: const Icon(Icons.date_range),
-                        label: const Text("Data"),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: StaggeredGrid.count(
-                      crossAxisCount: 6,
-                      children: [
-                        StaggeredGridTile.fit(
-                          crossAxisCellCount: 6,
-                          child: GestureDetector(
-                            child: Container(
-                              height: 400,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black12,
-                                    blurRadius: 6,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
-                              ),
-                              child: _buildGrafico(),
-                            ),
-                          ),
-                        ),
-                      ],
+        return SfRadialGauge(
+          backgroundColor: Colors.black,
+          title: GaugeTitle(
+            text: "KPI - Total $campoY",
+            textStyle: TextStyle(color: corPrincipal),
+          ),
+          axes: [
+            RadialAxis(
+              minimum: 0,
+              maximum: total * 1.5,
+              axisLabelStyle: GaugeTextStyle(color: corPrincipal),
+              pointers: [
+                RangePointer(value: total.toDouble(), color: corPrincipal),
+              ],
+              annotations: [
+                GaugeAnnotation(
+                  widget: Text(
+                    total.toStringAsFixed(0),
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: corPrincipal,
                     ),
                   ),
                 ),
               ],
             ),
+          ],
+        );
+
+      default:
+        return const Center(child: Text("Selecione um gráfico"));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: corPrincipal),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          "Relatório de Estoque",
+          style: TextStyle(color: corPrincipal, fontWeight: FontWeight.bold),
+        ),
+      ),
+
+      body: BaseScaffold(
+        titulo: "",
+        nomeUsuario: widget.nomeUsuario,
+        emailUsuario: widget.emailUsuario,
+        corpo: carregando
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        _filtroDropdown(
+                          value: tipoGrafico,
+                          items: ["Linhas", "Colunas", "Pizza", "KPI"],
+                          labelBuilder: (v) => "Gráfico: $v",
+                          onChanged: (v) => setState(() => tipoGrafico = v!),
+                        ),
+                        _filtroDropdown(
+                          value: campoX,
+                          items: camposDisponiveis,
+                          labelBuilder: (v) => "Eixo X: $v",
+                          onChanged: (v) => setState(() => campoX = v!),
+                        ),
+                        _filtroDropdown(
+                          value: campoY,
+                          items: camposDisponiveis,
+                          labelBuilder: (v) => "Eixo Y: $v",
+                          onChanged: (v) => setState(() => campoY = v!),
+                        ),
+                        _filtroDropdown(
+                          value: filtroUsuario,
+                          items: usuarios,
+                          hint: "Usuário",
+                          onChanged: (v) {
+                            setState(() => filtroUsuario = v);
+                            carregarRelatorio();
+                          },
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: selecionarPeriodo,
+                          icon: const Icon(Icons.date_range),
+                          label: const Text("Data"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: corPrincipal,
+                            foregroundColor: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: corPrincipal.withOpacity(0.7),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: corPrincipal.withOpacity(0.25),
+                              blurRadius: 12,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: _buildGrafico(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
+}
+
+Widget _filtroDropdown({
+  required String? value,
+  required List<String> items,
+  required ValueChanged<String?> onChanged,
+  String? hint,
+  String Function(String)? labelBuilder,
+}) {
+  return SizedBox(
+    width: 200,
+    child: DropdownButtonFormField<String>(
+      value: value,
+      isExpanded: true,
+      dropdownColor: Colors.black,
+      iconEnabledColor: corPrincipal,
+      style: TextStyle(color: corPrincipal),
+      hint: hint != null
+          ? Text(hint, style: TextStyle(color: corPrincipal))
+          : null,
+      decoration: InputDecoration(
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: corPrincipal),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: corPrincipal, width: 2),
+        ),
+      ),
+      items: items.map((e) {
+        return DropdownMenuItem<String>(
+          value: e,
+          child: Text(
+            labelBuilder != null ? labelBuilder(e) : e,
+            style: TextStyle(color: corPrincipal),
+          ),
+        );
+      }).toList(),
+      onChanged: onChanged,
+    ),
+  );
 }

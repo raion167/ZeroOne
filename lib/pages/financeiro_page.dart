@@ -66,7 +66,7 @@ class FinanceiroPage extends StatelessWidget {
                   ),
                 );
               },
-            ),*/
+            ),
             FinanceiroCardAnimado(
               icon: Icons.work,
               label: "Rentabilidade",
@@ -77,7 +77,7 @@ class FinanceiroPage extends StatelessWidget {
                   MaterialPageRoute(builder: (_) => GestaoProjetosPage()),
                 );
               },
-            ),
+            ),*/
           ],
         ),
       ),

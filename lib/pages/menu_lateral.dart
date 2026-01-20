@@ -74,10 +74,9 @@ class _BaseScaffoldState extends State<BaseScaffold> {
                 );
               }),
 
-              _menuItem(Icons.money, "Vendas", () {
+              /*_menuItem(Icons.money, "Vendas", () {
                 _navigate(() => NovaVendaPage());
-              }),
-
+              }),*/
               _menuItem(Icons.inventory_2, "Controle de Estoque", () {
                 _navigate(
                   () => ControleEstoquePage(

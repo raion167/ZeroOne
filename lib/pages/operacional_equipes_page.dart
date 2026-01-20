@@ -1,7 +1,12 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:zeroone/pages/detalhes_equipe_page.dart';
 import 'package:zeroone/pages/detalhes_projeto_page.dart';
+
+const Color corPrincipal = Color(0xFFBBFB04);
+const Color fundoEscuro = Color(0xFF0D0D0D);
 
 class OperacionalEquipesPage extends StatefulWidget {
   final String nomeUsuario;
@@ -50,86 +55,104 @@ class _OperacionalEquipesPageState extends State<OperacionalEquipesPage> {
     }
   }
 
+  // ================= CADASTRO DE EQUIPE =================
   void abrirCadastroEquipe() {
     final TextEditingController nomeCtrl = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Cadastrar Nova Equipe"),
-        content: TextField(
-          controller: nomeCtrl,
-          decoration: const InputDecoration(
-            labelText: "Nome da equipe",
-            border: OutlineInputBorder(),
+      builder: (_) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: AlertDialog(
+          backgroundColor: fundoEscuro,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: corPrincipal.withOpacity(0.6)),
           ),
+          title: const Text(
+            "Nova Equipe",
+            style: TextStyle(color: corPrincipal),
+          ),
+          content: TextField(
+            controller: nomeCtrl,
+            style: const TextStyle(color: corPrincipal),
+            decoration: InputDecoration(
+              labelText: "Nome da equipe",
+              labelStyle: const TextStyle(color: corPrincipal),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: corPrincipal.withOpacity(0.4)),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderSide: BorderSide(color: corPrincipal),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "Cancelar",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: corPrincipal,
+                foregroundColor: Colors.black,
+              ),
+              onPressed: () async {
+                if (nomeCtrl.text.isEmpty) return;
+                await cadastrarEquipe(nomeCtrl.text);
+                Navigator.pop(context);
+              },
+              child: const Text("Salvar"),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancelar"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nomeCtrl.text.isEmpty) return;
-              await cadastrarEquipe(nomeCtrl.text);
-              Navigator.pop(context);
-            },
-            child: const Text("Salvar"),
-          ),
-        ],
       ),
     );
   }
 
   Future<void> cadastrarEquipe(String nome) async {
-    try {
-      final res = await http.post(
-        Uri.parse("http://localhost:8080/app/cadastrar_equipes.php"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"nome": nome}),
-      );
-      final data = jsonDecode(res.body);
-      if (data["success"] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Equipe cadastrada com sucesso!")),
-        );
-        carregarEquipes();
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Erro: $e")));
-    }
+    final res = await http.post(
+      Uri.parse("http://localhost:8080/app/cadastrar_equipes.php"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"nome": nome}),
+    );
+    final data = jsonDecode(res.body);
+    if (data["success"] == true) carregarEquipes();
   }
 
+  // ================= VINCULAR OPERADOR (MANTIDO) =================
   void abrirVincularOperador(int equipeId, String equipeNome) async {
     List<Map<String, dynamic>> usuarios = [];
     String? usuarioSelecionado;
 
-    try {
-      final res = await http.get(
-        Uri.parse("http://localhost:8080/app/listar_usuarios_operacional.php"),
-      );
-      final data = jsonDecode(res.body);
-      usuarios =
-          (data["usuarios"] as List?)
-              ?.map((u) => Map<String, dynamic>.from(u))
-              .toList() ??
-          [];
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Erro ao carregar usuários: $e")));
-      return;
-    }
+    final res = await http.get(
+      Uri.parse("http://localhost:8080/app/listar_usuarios_operacional.php"),
+    );
+    final data = jsonDecode(res.body);
+    usuarios =
+        (data["usuarios"] as List?)
+            ?.map((u) => Map<String, dynamic>.from(u))
+            .toList() ??
+        [];
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Vincular Operador à equipe '$equipeNome'"),
+      builder: (_) => AlertDialog(
+        backgroundColor: fundoEscuro,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: corPrincipal.withOpacity(0.6)),
+        ),
+        title: Text(
+          "Vincular operador à equipe $equipeNome",
+          style: const TextStyle(color: corPrincipal),
+        ),
         content: DropdownButtonFormField<String>(
-          hint: const Text("Selecione o operador"),
+          dropdownColor: fundoEscuro,
+          style: const TextStyle(color: corPrincipal),
           items: usuarios
               .map(
                 (u) => DropdownMenuItem(
@@ -139,13 +162,27 @@ class _OperacionalEquipesPageState extends State<OperacionalEquipesPage> {
               )
               .toList(),
           onChanged: (v) => usuarioSelecionado = v,
+          decoration: InputDecoration(
+            labelText: "Operador",
+            labelStyle: const TextStyle(color: corPrincipal),
+            enabledBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: corPrincipal.withOpacity(0.4)),
+            ),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancelar"),
+            child: const Text(
+              "Cancelar",
+              style: TextStyle(color: Colors.white),
+            ),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: corPrincipal,
+              foregroundColor: Colors.black,
+            ),
             onPressed: () async {
               if (usuarioSelecionado == null) return;
               await vincularUsuario(int.parse(usuarioSelecionado!), equipeId);
@@ -159,367 +196,86 @@ class _OperacionalEquipesPageState extends State<OperacionalEquipesPage> {
   }
 
   Future<void> vincularUsuario(int usuarioId, int equipeId) async {
-    try {
-      final res = await http.post(
-        Uri.parse("http://localhost:8080/app/vincular_usuario_equipe.php"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"usuario_id": usuarioId, "equipe_id": equipeId}),
-      );
-      final data = jsonDecode(res.body);
-      if (data["success"] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Operador vinculado com sucesso!")),
-        );
-        carregarEquipes();
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Erro: $e")));
-    }
-  }
-
-  void abrirDetalhesEquipe(Map<String, dynamic> equipe) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DetalhesEquipePage(
-          equipeId: int.parse(equipe["id"].toString()),
-          nomeEquipe: equipe["nome"],
-        ),
-      ),
+    await http.post(
+      Uri.parse("http://localhost:8080/app/vincular_usuario_equipe.php"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"usuario_id": usuarioId, "equipe_id": equipeId}),
     );
+    carregarEquipes();
   }
 
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Gestão de Equipes Operacionais")),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: abrirCadastroEquipe,
-        label: const Text("Nova Equipe"),
-        icon: const Icon(Icons.add),
-      ),
-      body: carregando
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: ListView.builder(
-                itemCount: equipes.length,
-                itemBuilder: (context, i) {
-                  final e = equipes[i];
-                  return Card(
-                    elevation: 3,
-                    child: ListTile(
-                      title: Text(e["nome"]),
-                      subtitle: Text(
-                        "Usuários: ${(e["usuarios"] ?? []).map((u) => u["nome"]).join(', ')}",
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.link),
-                        tooltip: "Vincular operador",
-                        onPressed: () => abrirVincularOperador(
-                          int.parse(e["id"].toString()),
-                          e["nome"],
-                        ),
-                      ),
-                      onTap: () => abrirDetalhesEquipe(e),
-                    ),
-                  );
-                },
-              ),
-            ),
-    );
-  }
-}
-
-// -----------------------------------------------------------
-// 🔹 SUBTELA DE DETALHES DA EQUIPE COM ABAS REAIS
-// -----------------------------------------------------------
-
-class DetalhesEquipePage extends StatefulWidget {
-  final int equipeId;
-  final String nomeEquipe;
-
-  const DetalhesEquipePage({
-    super.key,
-    required this.equipeId,
-    required this.nomeEquipe,
-  });
-
-  @override
-  State<DetalhesEquipePage> createState() => _DetalhesEquipePageState();
-}
-
-class _DetalhesEquipePageState extends State<DetalhesEquipePage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  bool carregando = true;
-
-  List<dynamic> operadores = [];
-  List<dynamic> projetos = [];
-  List<dynamic> status = [];
-
-  int total = 0;
-  int finalizados = 0;
-  int andamento = 0;
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    carregarDados();
-    carregarStatus();
-  }
-
-  Future<void> carregarDados() async {
-    setState(() => carregando = true);
-    await Future.wait([carregarOperadores(), carregarProjetos()]);
-    setState(() => carregando = false);
-  }
-
-  /*Future<void> carregarResumo() async {
-    final response = await http.get(
-      Uri.parse(
-        "http://localhost:8080/app/listar_status_equipe.php?equipe_id=${widget.equipeId}",
-      ),
-    );
-    final data = jsonDecode(response.body);
-
-    if (data["success"] == true) {
-      setState(() {
-        total = data["total"] ?? 0;
-        finalizados = data["finalizados"] ?? 0;
-        andamento = data["andamento"] ?? 0;
-      });
-    } else {
-      print("Erro ao carregar resumo: ${response.body}");
-    }
-  }*/
-
-  Future<void> carregarOperadores() async {
-    try {
-      final response = await http.get(
-        Uri.parse(
-          "http://localhost:8080/app/listar_operadores_equipe.php?equipe_id=${widget.equipeId}",
-        ),
-      );
-      final data = jsonDecode(response.body);
-      if (data["success"] == true) {
-        setState(() {
-          operadores = List<dynamic>.from(data["operadores"] ?? []);
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erro ao carregar operadores: $e")),
-      );
-    }
-  }
-
-  Future<void> carregarProjetos() async {
-    final response = await http.get(
-      Uri.parse(
-        "http://localhost:8080/app/listar_projetos_equipe.php?equipe_id=${widget.equipeId}",
-      ),
-    );
-    final data = jsonDecode(response.body);
-    if (data["success"]) {
-      projetos = List<dynamic>.from(data["projetos"] ?? []);
-    }
-  }
-
-  Future<void> carregarStatus() async {
-    final response = await http.get(
-      Uri.parse(
-        "http://localhost:8080/app/listar_status_equipe.php?equipe_id=${widget.equipeId}",
-      ),
-    );
-    final data = jsonDecode(response.body);
-    if (data["success"] == true) {
-      setState(() {
-        total = data["total"] ?? 0;
-        finalizados = data["finalizados"] ?? 0;
-        andamento = data["andamento"] ?? 0;
-
-        status = List<dynamic>.from(data["status"] ?? []);
-      });
-    } else {
-      print("Erro: resposta inválida -> ${response.body}");
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text("Equipe: ${widget.nomeEquipe}"),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.people), text: "Operadores"),
-            Tab(icon: Icon(Icons.work), text: "Projetos"),
-            Tab(icon: Icon(Icons.analytics), text: "Status"),
-          ],
-        ),
+        title: const Text("Equipes Operacionais"),
+        backgroundColor: Colors.black,
+        foregroundColor: corPrincipal,
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: corPrincipal,
+        foregroundColor: Colors.black,
+        icon: const Icon(Icons.add),
+        label: const Text("Nova Equipe"),
+        onPressed: abrirCadastroEquipe,
       ),
       body: carregando
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [_buildOperadores(), _buildProjetos(), _buildStatus()],
-            ),
-    );
-  }
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: equipes.length,
+              itemBuilder: (_, i) {
+                final e = equipes[i];
 
-  // ABA DE OPERADORES CADASTRADOS
-  Widget _buildOperadores() {
-    if (operadores.isEmpty) {
-      return const Center(
-        child: Text("Nenhum operador vinculado a esta equipe."),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(8),
-      itemCount: operadores.length,
-      itemBuilder: (context, index) {
-        final op = operadores[index];
-        return Card(
-          child: ListTile(
-            leading: const Icon(Icons.person),
-            title: Text(op["nome"] ?? "Sem nome"),
-            subtitle: Text(op["email"] ?? ""),
-          ),
-        );
-      },
-    );
-  }
-
-  // ABA DE PROJETOS
-  Widget _buildProjetos() {
-    if (projetos.isEmpty) {
-      return const Center(
-        child: Text("Nenhum projeto cadastrado para essa equipe"),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(8),
-      itemCount: projetos.length,
-      itemBuilder: (context, index) {
-        final p = projetos[index];
-        return Card(
-          child: ListTile(
-            leading: const Icon(Icons.assignment),
-            title: Text(p["titulo"] ?? "Projeto sem título"),
-            subtitle: Text(p["descricao"] ?? ""),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => DetalhesProjetoPage(
-                    projetoId: int.parse(p["id"].toString()),
-                    tituloProjeto: p["titulo"],
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    color: fundoEscuro,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: corPrincipal.withOpacity(0.35)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: corPrincipal.withOpacity(0.25),
+                        blurRadius: 14,
+                      ),
+                    ],
                   ),
-                ),
-              ).then((_) {
-                carregarDados();
-                carregarStatus();
-              });
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  // ABA DE STATUS DA EQUIPE
-  Widget _buildStatus() {
-    // calcula valores a partir da lista `projetos`
-    final int totalLocal = total;
-    final int andamentoLocal = andamento;
-    final int finalizadosLocal = finalizados;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        children: [
-          // CARDS DO DASHBOARD
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatusCard("Total", totalLocal, Colors.blue),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildStatusCard(
-                  "Andamento",
-                  andamentoLocal,
-                  Colors.orange,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildStatusCard(
-                  "Concluídos",
-                  finalizadosLocal,
-                  Colors.green,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // LISTA DE STATUS
-          if (status.isEmpty)
-            const Text("Nenhum status registrado")
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: status.length,
-              itemBuilder: (context, index) {
-                final s = status[index];
-                return Card(
                   child: ListTile(
-                    leading: const Icon(Icons.analytics_outlined),
-                    title: Text(s["titulo"] ?? "Sem título"),
-                    subtitle: Text(s["descricao"] ?? ""),
-                    trailing:
-                        const SizedBox(), // não existe campo 'data' na sua tabela
+                    title: Text(
+                      e["nome"],
+                      style: const TextStyle(
+                        color: corPrincipal,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Text(
+                      "Operadores: ${(e["usuarios"] ?? []).map((u) => u["nome"]).join(', ')}",
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.link, color: corPrincipal),
+                      onPressed: () => abrirVincularOperador(
+                        int.parse(e["id"].toString()),
+                        e["nome"],
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DetalhesEquipePage(
+                            equipeId: int.parse(e["id"].toString()),
+                            nomeEquipe: e["nome"],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 );
               },
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusCard(String titulo, int valor, Color cor) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      height: 110,
-      decoration: BoxDecoration(
-        color: cor.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cor.withOpacity(0.4)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(titulo, style: const TextStyle(fontSize: 14)),
-          const SizedBox(height: 8),
-          Text(
-            valor.toString(),
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: cor,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

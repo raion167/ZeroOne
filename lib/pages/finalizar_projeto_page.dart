@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:signature/signature.dart';
 
+const Color corPrincipal = Color(0xFFBBFB04);
+const Color fundoEscuro = Color(0xFF0D0D0D);
+
 class FinalizarProjetoPage extends StatefulWidget {
   final int projetoId;
 
@@ -15,6 +18,7 @@ class FinalizarProjetoPage extends StatefulWidget {
 
 class _FinalizarProjetoPageState extends State<FinalizarProjetoPage> {
   final TextEditingController obsController = TextEditingController();
+
   final SignatureController _signatureController = SignatureController(
     penStrokeWidth: 3,
     penColor: Colors.black,
@@ -34,23 +38,19 @@ class _FinalizarProjetoPageState extends State<FinalizarProjetoPage> {
     setState(() => isLoading = true);
 
     try {
-      // Converte assinatura em imagem
       final Uint8List? assinaturaBytes = await _signatureController
           .toPngBytes();
+
       if (assinaturaBytes == null) {
         throw Exception("Falha ao gerar imagem da assinatura");
       }
 
-      // ⚠️ Troque localhost pelo IP da sua máquina se estiver testando no celular
       final uri = Uri.parse("http://localhost:8080/app/finalizar_projeto.php");
 
       var request = http.MultipartRequest('POST', uri);
-
-      // Envia os campos obrigatórios
       request.fields['projeto_id'] = widget.projetoId.toString();
       request.fields['observacoes'] = obsController.text;
 
-      // Adiciona o arquivo de assinatura
       request.files.add(
         http.MultipartFile.fromBytes(
           'assinatura',
@@ -59,22 +59,19 @@ class _FinalizarProjetoPageState extends State<FinalizarProjetoPage> {
         ),
       );
 
-      // Envia a requisição
       final response = await request.send();
       final body = await response.stream.bytesToString();
-
-      // Tenta decodificar a resposta JSON
       final data = jsonDecode(body);
 
       if (data["success"] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("✅ Projeto finalizado com sucesso!")),
         );
-        Navigator.pop(context);
+        Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Erro: ${data["message"] ?? 'Erro desconhecido'}"),
+            content: Text("Erro: ${data["message"] ?? "Erro desconhecido"}"),
           ),
         );
       }
@@ -90,60 +87,110 @@ class _FinalizarProjetoPageState extends State<FinalizarProjetoPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Finalizar Projeto")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      backgroundColor: fundoEscuro,
+      appBar: AppBar(
+        backgroundColor: fundoEscuro,
+        foregroundColor: corPrincipal,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Observações sobre o serviço:",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
+            _sectionTitle("Observações sobre o serviço"),
             const SizedBox(height: 8),
-            TextField(
-              controller: obsController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: "Digite observações relevantes...",
+            _neonContainer(
+              child: TextField(
+                controller: obsController,
+                maxLines: 4,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: "Digite observações relevantes...",
+                  hintStyle: TextStyle(color: Colors.white38),
+                  border: InputBorder.none,
+                ),
               ),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              "Assinatura do cliente:",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
+            const SizedBox(height: 24),
+            _sectionTitle("Assinatura do cliente"),
             const SizedBox(height: 8),
-            Container(
-              height: 200,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.black45),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Signature(
-                controller: _signatureController,
-                backgroundColor: Colors.white,
+            _neonContainer(
+              child: SizedBox(
+                height: 200,
+                child: Signature(
+                  controller: _signatureController,
+                  backgroundColor: Colors.white,
+                ),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             Row(
               children: [
-                ElevatedButton.icon(
+                _neonButton(
+                  icon: Icons.clear,
+                  label: "Limpar",
+                  color: Colors.redAccent,
                   onPressed: () => _signatureController.clear(),
-                  icon: const Icon(Icons.clear),
-                  label: const Text("Limpar"),
                 ),
                 const Spacer(),
-                ElevatedButton.icon(
+                _neonButton(
+                  icon: Icons.send,
+                  label: isLoading ? "Enviando..." : "Enviar Finalização",
+                  color: corPrincipal,
                   onPressed: isLoading ? null : enviarFinalizacao,
-                  icon: const Icon(Icons.send),
-                  label: const Text("Enviar Finalização"),
                 ),
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ================= COMPONENTES VISUAIS =================
+
+  Widget _sectionTitle(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: corPrincipal,
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  Widget _neonContainer({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: fundoEscuro,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: corPrincipal.withOpacity(0.4)),
+        boxShadow: [
+          BoxShadow(color: corPrincipal.withOpacity(0.25), blurRadius: 14),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _neonButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback? onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, color: Colors.black),
+      label: Text(label, style: const TextStyle(color: Colors.black)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        elevation: 6,
+        shadowColor: color.withOpacity(0.6),
       ),
     );
   }

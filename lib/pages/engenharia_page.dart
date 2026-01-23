@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:zeroone/pages/financeiro_page.dart';
 
 class EngenhariaPage extends StatefulWidget {
   const EngenhariaPage({super.key});
@@ -40,7 +42,7 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
       } else {
         projetos = [];
       }
-    } catch (e) {
+    } catch (_) {
       projetos = [];
     } finally {
       setState(() => carregando = false);
@@ -58,11 +60,9 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
     Map<String, dynamic> projeto,
     String novoStatus,
   ) async {
-    setState(() {
-      projeto["status"] = novoStatus;
-    });
-
+    setState(() => projeto["status"] = novoStatus);
     setState(() => salvando = true);
+
     try {
       final res = await http.post(
         Uri.parse("http://localhost:8080/app/atualizar_status_projeto.php"),
@@ -82,107 +82,95 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
     }
   }
 
-  // ================================================
-  // 🔥 COLUNA KANBAN COM DRAGTARGET
-  // ================================================
+  // =====================================================
+  // 🔹 COLUNA KANBAN RESPONSIVA
+  // =====================================================
   Widget _buildKanbanColumn(String status, Color cor) {
     final lista = filtrar(status);
 
-    return SizedBox(
-      width: 350,
-      child: DragTarget<Map<String, dynamic>>(
-        onAccept: (projeto) => moverProjeto(projeto, status),
-        builder: (context, candidate, rejected) {
-          return Container(
-            margin: const EdgeInsets.all(12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: candidate.isNotEmpty ? Colors.green : cor,
-                width: 3,
+    return DragTarget<Map<String, dynamic>>(
+      onAccept: (projeto) => moverProjeto(projeto, status),
+      builder: (context, candidate, rejected) {
+        return Container(
+          margin: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: candidate.isNotEmpty ? Colors.greenAccent : cor,
+              width: 2,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                status,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: cor,
+                ),
               ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  status,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: cor,
-                  ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: lista.length,
+                  itemBuilder: (context, index) {
+                    return _buildKanbanCard(lista[index], cor);
+                  },
                 ),
-
-                const SizedBox(height: 12),
-
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return ListView.builder(
-                        itemCount: lista.length,
-                        itemBuilder: (context, index) {
-                          final item = lista[index];
-                          return _buildKanbanCard(item, cor);
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  // ================================================
-  // 🔥 CARD ARRASTÁVEL (DRAGGABLE)
-  // ================================================
+  // =====================================================
+  // 🔹 CARD ARRASTÁVEL
+  // =====================================================
   Widget _buildKanbanCard(Map<String, dynamic> projeto, Color cor) {
     return LongPressDraggable<Map<String, dynamic>>(
       data: projeto,
       feedback: Material(
-        elevation: 4,
+        color: Colors.transparent,
         child: Container(
-          width: 280,
-          padding: const EdgeInsets.all(12),
+          width: 260,
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.black,
             border: Border.all(color: cor, width: 2),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: Text(
-            projeto["titulo"] ?? "",
-            style: const TextStyle(fontSize: 16),
-          ),
+          child: Text(projeto["titulo"] ?? "", style: TextStyle(color: cor)),
         ),
       ),
-
       childWhenDragging: Opacity(
         opacity: 0.3,
         child: _cardClickable(projeto, cor),
       ),
-
       child: _cardClickable(projeto, cor),
     );
   }
 
   Widget _cardClickable(Map<String, dynamic> projeto, Color cor) {
     return InkWell(
-      onTap: () => _abrirDetalhesProjeto(projeto), // 👉 abre popup ao clicar
+      onTap: () => _abrirDetalhesProjeto(projeto),
       child: _cardVisual(projeto, cor),
     );
   }
 
   Widget _cardVisual(Map<String, dynamic> projeto, Color cor) {
     return Card(
+      color: Colors.black,
       elevation: 3,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -192,26 +180,28 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    projeto["titulo"] ?? "Sem título",
-                    style: const TextStyle(fontSize: 16),
+                    projeto["titulo"] ?? "",
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: cor,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-
+            const SizedBox(height: 6),
             Text(
               projeto["descricao"] ?? "",
-              maxLines: 3,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white70),
             ),
-
             const SizedBox(height: 6),
-
             Text(
               projeto["cliente_nome"] ?? "",
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
           ],
         ),
@@ -219,9 +209,51 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
     );
   }
 
-  // ====================================================
-  // 🔥 DETALHES DO PROJETO (MANTIVE SEU CÓDIGO)
-  // ====================================================
+  Future<void> enviarArquivosProjeto({
+    required int projetoId,
+    required List<XFile> imagens,
+    required List<PlatformFile> documentos,
+  }) async {
+    final uri = Uri.parse("http://localhost:8080/app/upload_anexo.php");
+
+    final request = http.MultipartRequest("POST", uri);
+    request.fields["projeto_id"] = projetoId.toString();
+
+    // IMAGENS
+    for (final img in imagens) {
+      if (kIsWeb) {
+        final bytes = await img.readAsBytes();
+        request.files.add(
+          http.MultipartFile.fromBytes("imagens[]", bytes, filename: img.name),
+        );
+      } else {
+        request.files.add(
+          await http.MultipartFile.fromPath("imagens[]", img.path),
+        );
+      }
+    }
+
+    // DOCUMENTOS
+    for (final doc in documentos) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          "documentos[]",
+          doc.bytes!,
+          filename: doc.name,
+        ),
+      );
+    }
+
+    final response = await request.send();
+
+    if (response.statusCode != 200) {
+      throw Exception("Erro ao salvar arquivos");
+    }
+  }
+
+  // =====================================================
+  // 🔹 DETALHES DO PROJETO (INALTERADO)
+  // =====================================================
   Future<List<Map<String, dynamic>>> carregarArquivosProjeto(
     int projetoId,
   ) async {
@@ -238,7 +270,6 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
             .toList();
       }
     } catch (_) {}
-
     return [];
   }
 
@@ -252,125 +283,155 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
-              title: Text(projeto["titulo"] ?? "Detalhes do Projeto"),
+              backgroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: corPrincipal, width: 2),
+              ),
+              titlePadding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      projeto["titulo"] ?? "Detalhes do Projeto",
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: corPrincipal),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: corPrincipal),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
               content: SizedBox(
                 width: double.maxFinite,
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Cliente: ${projeto["cliente_nome"] ?? '—'}"),
-                      const SizedBox(height: 8),
-                      Text("Descrição: ${projeto["descricao"] ?? '—'}"),
-                      const SizedBox(height: 12),
-                      const Text(
-                        "Arquivos:",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      height: 300,
+                      child: GridView.count(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 6,
+                        mainAxisSpacing: 6,
+                        children: [
+                          for (final f in arquivosExistentes)
+                            _miniaturaArquivo(f),
 
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 300,
-                        child: GridView.count(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 6,
-                          mainAxisSpacing: 6,
-                          children: [
-                            for (final f in arquivosExistentes)
-                              if (f["tipo_arquivo"] == "imagem")
-                                GestureDetector(
-                                  onTap: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (_) => Dialog(
-                                        child: Image.network(
-                                          "http://localhost:8080/app/${f["caminho"]}",
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  child: Image.network(
-                                    "http://localhost:8080/app/${f["caminho"]}",
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-
-                            for (final f in arquivosExistentes)
-                              if (f["tipo_arquivo"] == "documento")
-                                GestureDetector(
-                                  onTap: () {
-                                    launchUrl(
-                                      Uri.parse(
-                                        "http://localhost:8080/app/${f["caminho"]}",
-                                      ),
-                                    );
-                                  },
-                                  child: Container(
-                                    color: Colors.grey[300],
-                                    child: Center(
-                                      child: Text(
-                                        f["nome_arquivo"],
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                            for (final img in novasImagens)
-                              Image.file(File(img.path), fit: BoxFit.cover),
-
-                            for (final doc in novosDocs)
-                              Container(
-                                color: Colors.grey[200],
-                                child: Center(child: Text(doc.name)),
+                          for (final img in novasImagens)
+                            kIsWeb
+                                ? Image.network(img.path, fit: BoxFit.cover)
+                                : Image.file(File(img.path), fit: BoxFit.cover),
+                          for (final doc in novosDocs)
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                border: Border.all(color: Colors.white24),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                          ],
-                        ),
+                              padding: const EdgeInsets.all(6),
+                              child: Center(
+                                child: Text(
+                                  doc.name,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.white,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: () async {
-                          final picked = await picker.pickMultiImage(
-                            imageQuality: 70,
-                          );
-                          if (picked != null) {
-                            setStateDialog(() => novasImagens.addAll(picked));
-                          }
-                        },
-                        icon: const Icon(Icons.image),
-                        label: const Text("Adicionar Imagens"),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: corPrincipal,
+                        foregroundColor: Colors.black,
                       ),
-
-                      const SizedBox(height: 8),
-                      ElevatedButton.icon(
-                        onPressed: () async {
-                          final result = await FilePicker.platform.pickFiles(
-                            allowMultiple: true,
-                            type: FileType.any,
-                          );
-                          if (result != null) {
-                            setStateDialog(
-                              () => novosDocs.addAll(result.files),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.upload_file),
-                        label: const Text("Adicionar Documentos"),
+                      icon: const Icon(Icons.image),
+                      label: const Text("Adicionar Imagens"),
+                      onPressed: () async {
+                        final picked = await picker.pickMultiImage(
+                          imageQuality: 70,
+                        );
+                        if (picked != null) {
+                          setStateDialog(() {
+                            novasImagens.addAll(picked);
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: corPrincipal,
+                        foregroundColor: Colors.black,
                       ),
-                    ],
-                  ),
+                      icon: const Icon(Icons.upload_file),
+                      label: const Text("Adicionar Documentos"),
+                      onPressed: () async {
+                        final result = await FilePicker.platform.pickFiles(
+                          allowMultiple: true,
+                        );
+                        if (result != null) {
+                          setStateDialog(() {
+                            novosDocs.addAll(result.files);
+                          });
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ),
-
               actions: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFBBFB04),
+                    foregroundColor: Colors.black,
+                    elevation: 0,
+                  ),
+                  icon: const Icon(Icons.save),
+                  label: const Text("Salvar"),
+                  onPressed: () async {
+                    try {
+                      await enviarArquivosProjeto(
+                        projetoId: int.parse(projeto["id"].toString()),
+                        imagens: novasImagens,
+                        documentos: novosDocs,
+                      );
+
+                      Navigator.pop(context);
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Arquivos salvos com sucesso"),
+                        ),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Erro ao salvar arquivos"),
+                        ),
+                      );
+                    }
+                  },
+                ),
+
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text("Fechar"),
+                  child: const Text(
+                    "Cancelar",
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             );
@@ -380,28 +441,83 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
     );
   }
 
-  // ====================================================
-  // 🔥 TELA PRINCIPAL
-  // ====================================================
+  // =====================================================
+  // 🔹 BUILD PRINCIPAL RESPONSIVO
+  // =====================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Engenharia - Painel Kanban"),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.black,
+        foregroundColor: corPrincipal,
       ),
       body: carregando
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildKanbanColumn("A Fazer", Colors.orange),
-                  _buildKanbanColumn("Em Andamento", Colors.blue),
-                  _buildKanbanColumn("Concluído", Colors.green),
-                ],
-              ),
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                return Row(
+                  children: [
+                    Expanded(
+                      child: _buildKanbanColumn("A Fazer", Colors.orangeAccent),
+                    ),
+                    Expanded(
+                      child: _buildKanbanColumn(
+                        "Em Andamento",
+                        Colors.blueAccent,
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildKanbanColumn("Concluído", corPrincipal),
+                    ),
+                  ],
+                );
+              },
             ),
+    );
+  }
+
+  Widget _miniaturaArquivo(Map<String, dynamic> f) {
+    final url = "http://localhost:8080/app/uploads/${f["caminho"]}";
+
+    if (f["tipo_arquivo"] == "imagem") {
+      return GestureDetector(
+        onTap: () {
+          showDialog(
+            context: context,
+            builder: (_) => Dialog(child: Image.network(url)),
+          );
+        },
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(url, fit: BoxFit.cover),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => launchUrl(Uri.parse(url)),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white24),
+        ),
+        padding: const EdgeInsets.all(6),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.insert_drive_file, color: Colors.white, size: 32),
+            const SizedBox(height: 6),
+            Text(
+              f["nome_arquivo"] ?? "",
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, color: Colors.white),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

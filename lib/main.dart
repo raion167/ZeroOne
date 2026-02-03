@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:zeroone/pages/pagina_inicial.dart';
-import 'auth_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:html' as html;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 const Color corPrincipal = Color(0xFFBBFB04);
-void main() async {
-  bool modoNoturno = false;
-  double tamanhoFonte = 1.0;
-  WidgetsFlutterBinding.ensureInitialized();
-  final prefs = await SharedPreferences.getInstance();
 
-  modoNoturno = prefs.getBool("modoNoturno") ?? false;
-  tamanhoFonte = prefs.getDouble("TamanhoFonte") ?? 1.0;
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://vypmchzskenrlqximmjk.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ5cG1jaHpza2VucmxxeGltbWprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMDg2MzAsImV4cCI6MjA4NTY4NDYzMH0.uF3dLxEuX6uNvBW7cPMtUdx6zeEbYIt5DyqTNZj-ajg',
+  );
 
   runApp(const MyApp());
 }
+
+final supabase = Supabase.instance.client;
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -26,16 +27,11 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'ZeroOne',
       theme: ThemeData(
-        primarySwatch: Colors.green,
         scaffoldBackgroundColor: Colors.black,
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.black,
           labelStyle: const TextStyle(color: corPrincipal),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: corPrincipal),
-          ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: corPrincipal),
@@ -43,10 +39,6 @@ class MyApp extends StatelessWidget {
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: corPrincipal, width: 2),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 14,
           ),
         ),
       ),
@@ -63,101 +55,102 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  List<bool> isSelected = [true, false]; // Login / Cadastro
+  List<bool> isSelected = [true, false];
   bool get isLogin => isSelected[0];
 
-  // Controladores dos campos
-  final TextEditingController nomeController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController senhaController = TextEditingController();
+  final nomeController = TextEditingController();
+  final emailController = TextEditingController();
+  final senhaController = TextEditingController();
 
-  bool _carregando = false;
+  bool carregando = false;
 
-  void _autenticar() async {
-    if (!isLogin) {
-      // Cadastro
-      if (nomeController.text.isEmpty ||
-          emailController.text.isEmpty ||
-          senhaController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Preencha todos os campos")),
-        );
-        return;
-      }
-    } else {
-      // Login
-      if (emailController.text.isEmpty || senhaController.text.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Preencha email e senha")));
-        return;
-      }
+  Future<void> _autenticar() async {
+    if (emailController.text.isEmpty || senhaController.text.isEmpty) {
+      _msg("Preencha email e senha");
+      return;
     }
-    setState(() => _carregando = true);
+
+    if (!isLogin && nomeController.text.isEmpty) {
+      _msg("Informe seu nome");
+      return;
+    }
+
+    setState(() => carregando = true);
 
     try {
-      Map<String, dynamic> resposta;
+      User? user;
 
       if (isLogin) {
-        resposta = await AuthService.login(
-          emailController.text,
-          senhaController.text,
+        final res = await supabase.auth.signInWithPassword(
+          email: emailController.text,
+          password: senhaController.text,
         );
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(resposta["message"])));
-
-        if (resposta["success"]) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => HomePage(
-                nomeUsuario: resposta["usuario"]["nome"],
-                emailUsuario: resposta["usuario"]["email"],
-              ),
-            ),
-          );
-        }
+        user = res.user;
       } else {
-        resposta = await AuthService.cadastrar(
-          nomeController.text,
-          emailController.text,
-          senhaController.text,
+        final res = await supabase.auth.signUp(
+          email: emailController.text,
+          password: senhaController.text,
         );
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(resposta["message"])));
+        user = res.user;
+
+        if (user != null) {
+          await supabase.from('usuarios').insert({
+            'id': user.id,
+            'nome': nomeController.text,
+            'email': emailController.text,
+          });
+        }
       }
 
-      ScaffoldMessenger.of(
+      if (user == null) throw 'Falha na autenticação';
+
+      // 🔎 Buscar ou criar perfil
+      final perfil = await supabase
+          .from('usuarios')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (perfil == null) {
+        await supabase.from('usuarios').insert({
+          'id': user.id,
+          'nome': nomeController.text.isNotEmpty
+              ? nomeController.text
+              : 'Usuário',
+          'email': emailController.text,
+        });
+      }
+
+      Navigator.pushReplacement(
         context,
-      ).showSnackBar(SnackBar(content: Text(resposta["message"])));
+        MaterialPageRoute(
+          builder: (_) => HomePage(
+            nomeUsuario: perfil?['nome'] ?? 'Usuário',
+            emailUsuario: perfil?['email'] ?? emailController.text,
+          ),
+        ),
+      );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Erro: $e")));
+      _msg(e.toString());
     }
 
-    setState(() => _carregando = false);
+    setState(() => carregando = false);
+  }
+
+  void _msg(String texto) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // LOGO
-              Image.asset(
-                'assets/images/icone.png',
-                height: 120,
-                fit: BoxFit.contain,
-              ),
-              const SizedBox(height: 10),
+              Image.asset('assets/images/icone.png', height: 120),
+              const SizedBox(height: 20),
               const Text(
                 "PhaseOne",
                 style: TextStyle(
@@ -166,99 +159,67 @@ class _LoginPageState extends State<LoginPage> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 40),
-              // 🔹 Toggle Login / Cadastro
+              const SizedBox(height: 30),
+
               ToggleButtons(
                 isSelected: isSelected,
+                onPressed: (i) => setState(() => isSelected = [i == 0, i == 1]),
                 borderRadius: BorderRadius.circular(20),
                 selectedColor: Colors.black,
                 fillColor: corPrincipal,
                 color: corPrincipal,
-                selectedBorderColor: corPrincipal,
-                borderColor: corPrincipal,
-                onPressed: (int index) {
-                  setState(() {
-                    for (int i = 0; i < isSelected.length; i++) {
-                      isSelected[i] = (i == index);
-                    }
-                  });
-                },
                 children: const [
                   Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                    child: Text("Entrar", style: TextStyle(fontSize: 16)),
+                    padding: EdgeInsets.symmetric(horizontal: 30),
+                    child: Text("Entrar"),
                   ),
                   Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                    child: Text("Cadastrar", style: TextStyle(fontSize: 16)),
+                    padding: EdgeInsets.symmetric(horizontal: 30),
+                    child: Text("Cadastrar"),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 30),
 
-              // 🔹 Campo Nome só aparece no Cadastro
               if (!isLogin)
-                Column(
-                  children: [
-                    TextField(
-                      controller: nomeController,
-                      style: const TextStyle(color: corPrincipal),
-                      decoration: const InputDecoration(
-                        labelText: "Nome",
-                        prefixIcon: Icon(Icons.person, color: corPrincipal),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
+                TextField(
+                  controller: nomeController,
+                  style: const TextStyle(color: corPrincipal),
+                  decoration: const InputDecoration(labelText: "Nome"),
                 ),
 
-              // 🔹 Campo Email
+              const SizedBox(height: 16),
+
               TextField(
                 controller: emailController,
                 style: const TextStyle(color: corPrincipal),
-                decoration: const InputDecoration(
-                  labelText: "E-mail",
-                  prefixIcon: Icon(Icons.email, color: corPrincipal),
-                ),
+                decoration: const InputDecoration(labelText: "E-mail"),
               ),
+
               const SizedBox(height: 16),
 
-              // 🔹 Campo Senha
               TextField(
                 controller: senhaController,
                 obscureText: true,
                 style: const TextStyle(color: corPrincipal),
-                decoration: const InputDecoration(
-                  labelText: "Senha",
-                  prefixIcon: Icon(Icons.lock, color: corPrincipal),
-                ),
+                decoration: const InputDecoration(labelText: "Senha"),
               ),
+
               const SizedBox(height: 30),
 
-              // 🔹 Botão de ação
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: corPrincipal,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: _carregando ? null : _autenticar,
-                  child: _carregando
-                      ? const CircularProgressIndicator(color: Colors.black)
-                      : Text(
-                          isLogin ? "Entrar" : "Cadastrar",
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
+              ElevatedButton(
+                onPressed: carregando ? null : _autenticar,
+                style: ElevatedButton.styleFrom(backgroundColor: corPrincipal),
+                child: carregando
+                    ? const CircularProgressIndicator(color: Colors.black)
+                    : Text(
+                        isLogin ? "Entrar" : "Cadastrar",
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
                         ),
-                ),
+                      ),
               ),
             ],
           ),

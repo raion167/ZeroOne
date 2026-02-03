@@ -1,44 +1,70 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
-  static const String baseUrl = "http://localhost:8080/app";
+  static final _supabase = Supabase.instance.client;
 
-  // 🔹 Cadastro
+  // 🔐 LOGIN
+  static Future<Map<String, dynamic>> login(String email, String senha) async {
+    try {
+      final response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: senha,
+      );
+
+      final user = response.user;
+      if (user == null) {
+        return {"success": false, "message": "Usuário ou senha inválidos"};
+      }
+
+      // Buscar perfil
+      final perfil = await _supabase
+          .from('usuarios')
+          .select()
+          .eq('id', user.id)
+          .single();
+
+      return {
+        "success": true,
+        "message": "Login realizado com sucesso",
+        "usuario": perfil,
+      };
+    } catch (e) {
+      return {"success": false, "message": e.toString()};
+    }
+  }
+
+  // 📝 CADASTRO
   static Future<Map<String, dynamic>> cadastrar(
     String nome,
     String email,
     String senha,
   ) async {
-    final url = Uri.parse("$baseUrl/cadastro_one.php");
+    try {
+      final response = await _supabase.auth.signUp(
+        email: email,
+        password: senha,
+      );
 
-    final response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"}, // envia como JSON
-      body: jsonEncode({"nome": nome, "email": email, "senha": senha}),
-    );
+      final user = response.user;
+      if (user == null) {
+        return {"success": false, "message": "Erro ao criar usuário"};
+      }
 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception("Erro no servidor: ${response.statusCode}");
+      // Criar perfil
+      await _supabase.from('usuarios').insert({
+        'id': user.id, // UUID do auth.users
+        'nome': nome,
+        'email': email,
+      });
+
+      return {"success": true, "message": "Usuário cadastrado com sucesso"};
+    } catch (e) {
+      return {"success": false, "message": e.toString()};
     }
   }
 
-  // 🔹 Login
-  static Future<Map<String, dynamic>> login(String email, String senha) async {
-    final url = Uri.parse("$baseUrl/login_one.php");
-
-    final response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"}, // envia como JSON
-      body: jsonEncode({"email": email, "senha": senha}),
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception("Erro no servidor: ${response.statusCode}");
-    }
+  // 🚪 LOGOUT
+  static Future<void> logout() async {
+    await _supabase.auth.signOut();
   }
 }

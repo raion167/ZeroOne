@@ -1,11 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-const String apiBase = "http://localhost:8080/app/";
 const Color corPrincipal = Color(0xFFBBFB04);
 const Color corPendente = Colors.redAccent;
 const Color corTotal = Colors.blueAccent;
+
+final supabase = Supabase.instance.client;
 
 class EntradasVisaoGeralPage extends StatefulWidget {
   const EntradasVisaoGeralPage({super.key});
@@ -19,7 +19,9 @@ class _EntradasVisaoGeralPageState extends State<EntradasVisaoGeralPage> {
 
   double totalMes = 0;
   double totalPendente = 0;
-  List ultimasEntradas = [];
+  List<Map<String, dynamic>> ultimasEntradas = [];
+
+  String get userId => supabase.auth.currentUser!.id;
 
   @override
   void initState() {
@@ -28,19 +30,52 @@ class _EntradasVisaoGeralPageState extends State<EntradasVisaoGeralPage> {
   }
 
   Future<void> carregarVisaoGeral() async {
-    final url = Uri.parse("${apiBase}visao_geral_entradas.php");
-    final response = await http.get(url);
+    setState(() => loading = true);
 
-    final data = jsonDecode(response.body);
+    // 🔹 Busca todas as entradas do usuário
+    final res = await supabase
+        .from('entradas')
+        .select()
+        .eq('user_id', userId)
+        .order('data_recebimento', ascending: false);
 
-    if (data["success"]) {
-      setState(() {
-        totalMes = (data["total_mes"] as num).toDouble();
-        totalPendente = (data["total_pendente"] as num).toDouble();
-        ultimasEntradas = data["ultimas"] ?? [];
-        loading = false;
-      });
+    double totalMesTmp = 0;
+    double totalPendenteTmp = 0;
+    List<Map<String, dynamic>> ultimas = [];
+
+    final agora = DateTime.now();
+
+    for (final e in res) {
+      final valor = _toDouble(e['valor_recebido']);
+      final data = DateTime.parse(e['data_recebimento']);
+      final status = e['status'] ?? 'Recebido';
+
+      // 🔥 total do mês atual
+      if (data.month == agora.month && data.year == agora.year) {
+        totalMesTmp += valor;
+      }
+
+      // 🔥 pendentes
+      if (status != 'Recebido') {
+        totalPendenteTmp += valor;
+      }
     }
+
+    // 🔥 últimas 5 entradas
+    ultimas = res.take(5).map<Map<String, dynamic>>((e) {
+      return {
+        'identificador': e['identificador'],
+        'valor_recebido': e['valor_recebido'],
+        'data_recebimento': e['data_recebimento'],
+      };
+    }).toList();
+
+    setState(() {
+      totalMes = totalMesTmp;
+      totalPendente = totalPendenteTmp;
+      ultimasEntradas = ultimas;
+      loading = false;
+    });
   }
 
   @override
@@ -124,14 +159,14 @@ class _EntradasVisaoGeralPageState extends State<EntradasVisaoGeralPage> {
                               color: corPrincipal,
                             ),
                             title: Text(
-                              item["identificador"] ?? "Sem nome",
+                              item['identificador'] ?? 'Sem nome',
                               style: const TextStyle(
                                 color: corPrincipal,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             subtitle: Text(
-                              "R\$ ${item["valor_recebido"]} • ${item["data_recebimento"]}",
+                              "R\$ ${item['valor_recebido']} • ${item['data_recebimento']}",
                               style: TextStyle(
                                 color: corPrincipal.withOpacity(0.8),
                               ),
@@ -148,6 +183,7 @@ class _EntradasVisaoGeralPageState extends State<EntradasVisaoGeralPage> {
   }
 }
 
+// ================= CARD (INALTERADO) =================
 class _ResumoCard extends StatelessWidget {
   final String title;
   final String value;
@@ -205,4 +241,9 @@ class _ResumoCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// ================= HELPERS =================
+double _toDouble(dynamic v) {
+  return double.tryParse(v.toString()) ?? 0.0;
 }

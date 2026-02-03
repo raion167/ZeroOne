@@ -477,19 +477,21 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
   }
 
   Widget _miniaturaArquivo(Map<String, dynamic> f) {
-    final url = "http://localhost:8080/app/uploads/${f["caminho"]}";
+    String caminho = f["caminho"].toString();
+
+    if (caminho.startsWith("/")) {
+      caminho = caminho.substring(1);
+    }
+
+    final url = "http://localhost:8080/app/$caminho";
 
     if (f["tipo_arquivo"] == "imagem") {
-      return GestureDetector(
-        onTap: () {
-          showDialog(
-            context: context,
-            builder: (_) => Dialog(child: Image.network(url)),
-          );
-        },
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.network(url, fit: BoxFit.cover),
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
         ),
       );
     }
@@ -498,21 +500,18 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
       onTap: () => launchUrl(Uri.parse(url)),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.white24),
+          borderRadius: BorderRadius.circular(8),
         ),
         padding: const EdgeInsets.all(6),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.insert_drive_file, color: Colors.white, size: 32),
-            const SizedBox(height: 6),
+            const Icon(Icons.insert_drive_file, color: Colors.white),
             Text(
               f["nome_arquivo"] ?? "",
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 11, color: Colors.white),
             ),
           ],

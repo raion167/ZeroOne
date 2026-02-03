@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:zeroone/pages/contas_relatorios.dart';
-import 'contas_relatorios.dart';
 
 const Color corPrincipal = Color(0xFFBBFB04);
 
@@ -53,7 +52,7 @@ class _ContasRelatoriosPageState extends State<ContasRelatoriosPage>
       ),
       body: TabBarView(
         controller: _tab,
-        children: const [
+        children: [
           _GraficoWrapper(child: GraficoStatusPagamento()),
           _GraficoWrapper(child: GraficoEvolucaoMensal()),
           _GraficoWrapper(child: GraficoCategorias()),

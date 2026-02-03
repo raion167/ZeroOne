@@ -2,11 +2,13 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:ui';
 
 const String apiBase = "http://localhost:8080/app/";
 const Color corPrincipal = Color(0xFFBBFB04);
 const Color corPendente = Colors.redAccent;
+final supabase = Supabase.instance.client;
 
 class EntradasListagemPage extends StatefulWidget {
   const EntradasListagemPage({super.key});
@@ -18,6 +20,7 @@ class EntradasListagemPage extends StatefulWidget {
 class _EntradasListagemPageState extends State<EntradasListagemPage> {
   List entradas = [];
   bool loading = true;
+  String get userId => supabase.auth.currentUser!.id;
 
   final TextEditingController valorController = TextEditingController();
   final TextEditingController identificadorController = TextEditingController();
@@ -55,7 +58,7 @@ class _EntradasListagemPageState extends State<EntradasListagemPage> {
   Future<void> carregarEntradas() async {
     setState(() => loading = true);
 
-    final url = Uri.parse("${apiBase}listar_entradas.php");
+    final url = Uri.parse("${apiBase}listar_entradas.php?user_id=$userId");
     final response = await http.get(url);
     final data = jsonDecode(response.body);
 
@@ -81,6 +84,7 @@ class _EntradasListagemPageState extends State<EntradasListagemPage> {
     final url = Uri.parse("${apiBase}adicionar_entrada.php");
 
     final Map<String, dynamic> dados = {
+      "user_id": userId,
       "data_recebimento": DateFormat("yyyy-MM-dd").format(dataRecebimento!),
       "data_competencia": DateFormat("yyyy-MM-dd").format(dataCompetencia!),
       "valor_recebido": double.parse(valorController.text),

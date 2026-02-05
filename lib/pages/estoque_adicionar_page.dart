@@ -1,7 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'menu_lateral.dart';
+
+final supabase = Supabase.instance.client;
 
 class EstoqueAdicionarPage extends StatefulWidget {
   final String nomeUsuario;
@@ -38,10 +39,11 @@ class _EstoqueAdicionarPageState extends State<EstoqueAdicionarPage> {
 
     int quantidade;
     double preco;
+
     try {
       quantidade = int.parse(qtdText);
-      preco = double.parse(precoText.replaceAll(',', '.')); // aceita vírgula
-    } catch (e) {
+      preco = double.parse(precoText.replaceAll(',', '.'));
+    } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Quantidade ou preço inválido.")),
       );
@@ -51,26 +53,20 @@ class _EstoqueAdicionarPageState extends State<EstoqueAdicionarPage> {
     setState(() => carregando = true);
 
     try {
-      final response = await http.post(
-        Uri.parse("http://localhost:8080/app/adicionar_estoque.php"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "nome": nome,
-          "quantidade": quantidade,
-          "preco": preco,
-        }),
-      );
+      await supabase.from('estoque').insert({
+        'nome': nome,
+        'quantidade': quantidade,
+        'preco': preco,
+        'data_cadastro': DateTime.now().toIso8601String(),
+      });
 
-      final data = jsonDecode(response.body);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(data["message"] ?? "Resposta sem mensagem.")),
+        const SnackBar(content: Text("Produto adicionado com sucesso")),
       );
 
-      if (data["success"] == true) {
-        nomeCtrl.clear();
-        qtdCtrl.clear();
-        precoCtrl.clear();
-      }
+      nomeCtrl.clear();
+      qtdCtrl.clear();
+      precoCtrl.clear();
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -89,23 +85,26 @@ class _EstoqueAdicionarPageState extends State<EstoqueAdicionarPage> {
         title: const Text("Itens em Estoque"),
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back),
         ),
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             TextField(
               controller: nomeCtrl,
-              decoration: const InputDecoration(labelText: "Nome do Produto"),
+              style: const TextStyle(color: corPrincipal),
+              cursorColor: corPrincipal,
+              decoration: _decoracaoCampo("Nome do Produto"),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: qtdCtrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Quantidade"),
+              style: const TextStyle(color: corPrincipal),
+              cursorColor: corPrincipal,
+              decoration: _decoracaoCampo("Quantidade"),
             ),
             const SizedBox(height: 10),
             TextField(
@@ -113,9 +112,9 @@ class _EstoqueAdicionarPageState extends State<EstoqueAdicionarPage> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              decoration: const InputDecoration(
-                labelText: "Preço Unitário (R\$)",
-              ),
+              style: const TextStyle(color: corPrincipal),
+              cursorColor: corPrincipal,
+              decoration: _decoracaoCampo("Preço Unitário (R\$)"),
             ),
             const SizedBox(height: 20),
             carregando
@@ -141,6 +140,19 @@ class _EstoqueAdicionarPageState extends State<EstoqueAdicionarPage> {
                   ),
           ],
         ),
+      ),
+    );
+  }
+
+  InputDecoration _decoracaoCampo(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: corPrincipal),
+      enabledBorder: const UnderlineInputBorder(
+        borderSide: BorderSide(color: corPrincipal),
+      ),
+      focusedBorder: const UnderlineInputBorder(
+        borderSide: BorderSide(color: corPrincipal, width: 2),
       ),
     );
   }

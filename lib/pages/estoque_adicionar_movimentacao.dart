@@ -1,10 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'menu_lateral.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// 🔹 COR PRINCIPAL (MESMA DAS OUTRAS TELAS)
 const Color corPrincipal = Color(0xFFBBFB04);
+final supabase = Supabase.instance.client;
 
 class EstoqueAdicionarMovimentacaoPage extends StatefulWidget {
   final String nomeUsuario;
@@ -23,9 +21,9 @@ class EstoqueAdicionarMovimentacaoPage extends StatefulWidget {
 
 class _EstoqueAdicionarMovimentacaoPageState
     extends State<EstoqueAdicionarMovimentacaoPage> {
-  List<dynamic> produtos = [];
+  List<Map<String, dynamic>> produtos = [];
   Map<String, dynamic>? produtoSelecionado;
-  final TextEditingController quantidadeCtrl = TextEditingController();
+  final quantidadeCtrl = TextEditingController();
   String tipo = "entrada";
   bool carregandoProdutos = true;
 
@@ -35,75 +33,61 @@ class _EstoqueAdicionarMovimentacaoPageState
     carregarProdutos();
   }
 
+  // ================= CARREGAR PRODUTOS =================
   Future<void> carregarProdutos() async {
     try {
-      final response = await http.get(
-        Uri.parse("http://localhost:8080/app/listar_estoque.php"),
-      );
+      final response = await supabase
+          .from('estoque')
+          .select('id, nome, quantidade')
+          .order('nome');
 
-      final data = jsonDecode(response.body);
-
-      if (data["success"] == true) {
-        setState(() {
-          produtos = data["produtos"] ?? data["itens"] ?? [];
-          carregandoProdutos = false;
-        });
-      } else {
-        throw Exception("Erro ao carregar produtos");
-      }
+      setState(() {
+        produtos = List<Map<String, dynamic>>.from(response);
+        carregandoProdutos = false;
+      });
     } catch (e) {
       setState(() => carregandoProdutos = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Erro ao carregar produtos: $e")));
+      ).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }
   }
 
+  // ================= SALVAR MOVIMENTAÇÃO =================
   Future<void> salvarMovimentacao() async {
     if (produtoSelecionado == null || quantidadeCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Selecione o produto e informe a quantidade"),
-        ),
+        const SnackBar(content: Text("Informe produto e quantidade")),
       );
       return;
     }
 
     try {
-      final response = await http.post(
-        Uri.parse("http://localhost:8080/app/adicionar_movimentacao.php"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "produto": produtoSelecionado!["nome"],
-          "quantidade": quantidadeCtrl.text,
-          "tipo": tipo,
-          "usuario": widget.nomeUsuario,
-        }),
-      );
+      final user = supabase.auth.currentUser;
 
-      final data = jsonDecode(response.body);
+      await supabase.from('movimentacoes_estoque').insert({
+        "produto_id": produtoSelecionado!["id"],
+        "user_id": user?.id, // 🔥 salva quem fez
+        "tipo": tipo,
+        "quantidade": int.parse(quantidadeCtrl.text),
+        "data_movimentacao": DateTime.now().toIso8601String(),
+      });
 
-      if (data["success"] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Movimentação registrada com sucesso!")),
-        );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Movimentação registrada!")));
 
-        setState(() {
-          produtoSelecionado = null;
-          quantidadeCtrl.clear();
-        });
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Erro: ${data["message"]}")));
-      }
+      quantidadeCtrl.clear();
+      produtoSelecionado = null;
+      carregarProdutos();
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Erro ao enviar dados: $e")));
+      ).showSnackBar(SnackBar(content: Text("Erro: $e")));
     }
   }
 
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -111,157 +95,85 @@ class _EstoqueAdicionarMovimentacaoPageState
         title: const Text("Adicionar Movimentação"),
         backgroundColor: Colors.black,
         foregroundColor: corPrincipal,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: Icon(Icons.arrow_back),
-        ),
       ),
       body: carregandoProdutos
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+          : Padding(
               padding: const EdgeInsets.all(16),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: _neonBox(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    /// 🔹 TIPO (ENTRADA / SAÍDA)
-                    ToggleButtons(
-                      isSelected: [tipo == "entrada", tipo == "saida"],
-                      onPressed: (index) {
-                        setState(() {
-                          tipo = index == 0 ? "entrada" : "saida";
-                        });
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      borderColor: corPrincipal,
-                      selectedBorderColor: tipo == "entrada"
-                          ? corPrincipal
-                          : Colors.redAccent,
-                      color: Colors.white70,
-                      selectedColor: Colors.black,
-                      fillColor: tipo == "entrada"
-                          ? corPrincipal
-                          : Colors.redAccent,
-                      children: const [
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 20),
-                          child: Text("Entrada"),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 20),
-                          child: Text("Saída"),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    /// 🔹 PRODUTO
-                    DropdownButtonFormField<Map<String, dynamic>>(
-                      dropdownColor: Colors.black,
-                      value: produtoSelecionado,
-                      style: const TextStyle(color: Colors.white),
-                      iconEnabledColor: corPrincipal,
-                      decoration: _inputNeon(label: "Produto"),
-                      items: produtos.map((item) {
-                        return DropdownMenuItem<Map<String, dynamic>>(
-                          value: item,
-                          child: Text(
-                            "${item["nome"]} (Qtd: ${item["quantidade"]})",
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          produtoSelecionado = value;
-                          quantidadeCtrl.text =
-                              value?["quantidade"]?.toString() ?? "";
-                        });
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    /// 🔹 QUANTIDADE
-                    TextField(
-                      controller: quantidadeCtrl,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: _inputNeon(
-                        label: tipo == "entrada"
-                            ? "Quantidade adicionada"
-                            : "Quantidade retirada",
+              child: Column(
+                children: [
+                  ToggleButtons(
+                    isSelected: [tipo == "entrada", tipo == "saida"],
+                    onPressed: (index) {
+                      setState(() {
+                        tipo = index == 0 ? "entrada" : "saida";
+                      });
+                    },
+                    borderColor: corPrincipal,
+                    selectedBorderColor: corPrincipal,
+                    fillColor: corPrincipal,
+                    selectedColor: Colors.black,
+                    children: const [
+                      Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Text("Entrada"),
                       ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    /// 🔹 BOTÃO SALVAR
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.save, color: Colors.white),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        side: BorderSide(
-                          color: tipo == "entrada"
-                              ? corPrincipal
-                              : Colors.redAccent,
-                        ),
-                        shadowColor: tipo == "entrada"
-                            ? corPrincipal
-                            : Colors.redAccent,
-                        elevation: 10,
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 14,
-                          horizontal: 24,
-                        ),
+                      Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Text("Saída"),
                       ),
-                      onPressed: salvarMovimentacao,
-                      label: Text(
-                        "Registrar Movimentação",
-                        style: TextStyle(
-                          color: tipo == "entrada"
-                              ? corPrincipal
-                              : Colors.redAccent,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  DropdownButtonFormField<Map<String, dynamic>>(
+                    dropdownColor: Colors.black,
+                    value: produtoSelecionado,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: "Produto",
+                      labelStyle: TextStyle(color: Colors.white70),
                     ),
-                  ],
-                ),
+                    items: produtos.map((p) {
+                      return DropdownMenuItem(
+                        value: p,
+                        child: Text(
+                          "${p['nome']} (Qtd: ${p['quantidade']})",
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (v) => setState(() => produtoSelecionado = v),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  TextField(
+                    controller: quantidadeCtrl,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: "Quantidade",
+                      labelStyle: TextStyle(color: Colors.white70),
+                    ),
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  ElevatedButton(
+                    onPressed: salvarMovimentacao,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: corPrincipal,
+                    ),
+                    child: const Text(
+                      "Salvar",
+                      style: TextStyle(color: Colors.black),
+                    ),
+                  ),
+                ],
               ),
             ),
     );
   }
 }
-
-/// 🔹 DECORAÇÕES NEON (REUTILIZÁVEIS)
-BoxDecoration _neonBox() => BoxDecoration(
-  color: Colors.black,
-  borderRadius: BorderRadius.circular(16),
-  border: Border.all(color: corPrincipal),
-  boxShadow: [
-    BoxShadow(
-      color: corPrincipal.withOpacity(0.4),
-      blurRadius: 18,
-      spreadRadius: 2,
-    ),
-  ],
-);
-
-InputDecoration _inputNeon({required String label}) => InputDecoration(
-  labelText: label,
-  labelStyle: const TextStyle(color: Colors.white70),
-  filled: true,
-  fillColor: Colors.black,
-  enabledBorder: OutlineInputBorder(
-    borderSide: BorderSide(color: corPrincipal),
-    borderRadius: BorderRadius.circular(12),
-  ),
-  focusedBorder: OutlineInputBorder(
-    borderSide: BorderSide(color: corPrincipal, width: 2),
-    borderRadius: BorderRadius.circular(12),
-  ),
-);

@@ -1,8 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:fl_chart/fl_chart.dart';
-import 'package:zeroone/pages/menu_lateral.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+final supabase = Supabase.instance.client;
+const Color corPrincipal = Color(0xFFBBFB04);
 
 class EstoqueVisaoGeralPage extends StatefulWidget {
   final String nomeUsuario;
@@ -25,31 +26,46 @@ class _EstoqueVisaoGeralPageState extends State<EstoqueVisaoGeralPage> {
   List<Map<String, dynamic>> distribuicao = [];
   List<String> produtosBaixos = [];
 
+  @override
+  void initState() {
+    super.initState();
+    carregarResumo();
+  }
+
   Future<void> carregarResumo() async {
     try {
-      final response = await http.get(
-        Uri.parse("http://localhost:8080/app/estoque_resumo.php"),
-      );
+      final response = await supabase
+          .from('estoque')
+          .select('nome, quantidade, preco');
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      int somaItens = 0;
+      double somaValor = 0;
+      List<Map<String, dynamic>> dist = [];
+      List<String> baixos = [];
 
-        if (data["success"] == true) {
-          setState(() {
-            totalItens = data["total_itens"];
-            valorTotal = double.tryParse(data["valor_total"].toString()) ?? 0.0;
-            distribuicao = List<Map<String, dynamic>>.from(
-              data["distribuicao"],
-            );
-            produtosBaixos = List<String>.from(data["produtos_baixos"]);
-            carregando = false;
-          });
-        } else {
-          throw Exception("Erro ao carregar dados do servidor");
+      for (final item in response) {
+        final int qtd = item['quantidade'];
+        final double preco = (item['preco'] as num).toDouble();
+
+        somaItens += qtd;
+        somaValor += qtd * preco;
+
+        dist.add({'nome': item['nome'], 'quantidade': qtd});
+
+        if (qtd <= 5) {
+          baixos.add(item['nome']);
         }
-      } else {
-        throw Exception("Erro de conexão: ${response.statusCode}");
       }
+
+      dist.sort((a, b) => b['quantidade'].compareTo(a['quantidade']));
+
+      setState(() {
+        totalItens = somaItens;
+        valorTotal = somaValor;
+        distribuicao = dist.take(10).toList();
+        produtosBaixos = baixos;
+        carregando = false;
+      });
     } catch (e) {
       setState(() => carregando = false);
       ScaffoldMessenger.of(
@@ -59,31 +75,19 @@ class _EstoqueVisaoGeralPageState extends State<EstoqueVisaoGeralPage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    carregarResumo();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: corPrincipal,
         title: const Text("Visão Geral de Estoque"),
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back),
-        ),
       ),
-
       body: carregando
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // 🔹 Cards de resumo
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -97,15 +101,9 @@ class _EstoqueVisaoGeralPageState extends State<EstoqueVisaoGeralPage> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 20),
-
-                  // 🔹 Card de produtos em baixa
                   _CardProdutosBaixos(produtosBaixos: produtosBaixos),
-
                   const SizedBox(height: 30),
-
-                  // 🔹 Gráfico de distribuição
                   const Text(
                     "Distribuição dos Produtos (Top 10)",
                     style: TextStyle(
@@ -115,95 +113,84 @@ class _EstoqueVisaoGeralPageState extends State<EstoqueVisaoGeralPage> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: corPrincipal.withOpacity(0.8),
-                        width: 1.2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: corPrincipal.withOpacity(0.5),
-                          blurRadius: 18,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: SizedBox(
-                      height: 250,
-                      child: BarChart(
-                        BarChartData(
-                          alignment: BarChartAlignment.spaceAround,
-                          borderData: FlBorderData(show: false),
-                          gridData: const FlGridData(show: false),
-                          titlesData: FlTitlesData(
-                            leftTitles: const AxisTitles(),
-                            topTitles: const AxisTitles(),
-                            rightTitles: const AxisTitles(),
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                getTitlesWidget: (value, meta) {
-                                  final index = value.toInt();
-                                  if (index < 0 ||
-                                      index >= distribuicao.length) {
-                                    return const SizedBox();
-                                  }
-                                  return Transform.rotate(
-                                    angle: -0.6,
-                                    child: Text(
-                                      distribuicao[index]['nome'],
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                          barGroups: distribuicao.asMap().entries.map((entry) {
-                            int index = entry.key;
-                            final item = entry.value;
-                            return BarChartGroupData(
-                              x: index,
-                              barRods: [
-                                BarChartRodData(
-                                  toY:
-                                      double.tryParse(
-                                        item['quantidade'].toString(),
-                                      ) ??
-                                      0,
-                                  width: 16,
-                                  borderRadius: BorderRadius.circular(4),
-                                  gradient: LinearGradient(
-                                    begin: AlignmentGeometry.bottomCenter,
-                                    end: AlignmentGeometry.topCenter,
-                                    colors: [
-                                      corPrincipal.withOpacity(0.6),
-                                      corPrincipal,
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ),
+                  _graficoDistribuicao(),
                 ],
               ),
             ),
     );
   }
+
+  Widget _graficoDistribuicao() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: corPrincipal.withOpacity(0.8), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: corPrincipal.withOpacity(0.5),
+            blurRadius: 18,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: SizedBox(
+        height: 250,
+        child: BarChart(
+          BarChartData(
+            gridData: const FlGridData(show: false),
+            borderData: FlBorderData(show: false),
+            titlesData: FlTitlesData(
+              leftTitles: const AxisTitles(),
+              rightTitles: const AxisTitles(),
+              topTitles: const AxisTitles(),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    final index = value.toInt();
+                    if (index >= distribuicao.length) {
+                      return const SizedBox();
+                    }
+                    return Transform.rotate(
+                      angle: -0.6,
+                      child: Text(
+                        distribuicao[index]['nome'],
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            barGroups: distribuicao.asMap().entries.map((entry) {
+              return BarChartGroupData(
+                x: entry.key,
+                barRods: [
+                  BarChartRodData(
+                    toY: (entry.value['quantidade'] as num).toDouble(),
+                    width: 16,
+                    borderRadius: BorderRadius.circular(4),
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [corPrincipal.withOpacity(0.6), corPrincipal],
+                    ),
+                  ),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-// 🔹 Card genérico para total e valor
 class _ResumoCard extends StatelessWidget {
   final String titulo;
   final String valor;
@@ -248,7 +235,6 @@ class _ResumoCard extends StatelessWidget {
   }
 }
 
-// 🔹 Novo card para produtos em baixa quantidade
 class _CardProdutosBaixos extends StatelessWidget {
   final List<String> produtosBaixos;
 
@@ -289,22 +275,18 @@ class _CardProdutosBaixos extends StatelessWidget {
                 )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: produtosBaixos
-                      .map(
-                        (produto) => Padding(
-                          padding: const EdgeInsetsGeometry.symmetric(
-                            vertical: 2,
-                          ),
-                          child: Text(
-                            "• $produto",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                            ),
-                          ),
+                  children: produtosBaixos.map((produto) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
+                        "• $produto",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
                         ),
-                      )
-                      .toList(),
+                      ),
+                    );
+                  }).toList(),
                 ),
         ],
       ),

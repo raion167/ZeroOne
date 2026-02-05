@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:http/http.dart' as http;
-import 'package:syncfusion_flutter_gauges/gauges.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zeroone/pages/contas_visao_geral.dart';
+
+final supabase = Supabase.instance.client;
 
 class DistribuicaoCategoriaPage extends StatefulWidget {
   const DistribuicaoCategoriaPage({super.key});
@@ -15,7 +15,9 @@ class DistribuicaoCategoriaPage extends StatefulWidget {
 
 class _DistribuicaoCategoriaPageState extends State<DistribuicaoCategoriaPage> {
   bool loading = true;
-  List dados = [];
+  List<Map<String, dynamic>> dados = [];
+
+  String get userId => supabase.auth.currentUser!.id;
 
   final List<Color> cores = [
     Colors.cyanAccent,
@@ -32,27 +34,42 @@ class _DistribuicaoCategoriaPageState extends State<DistribuicaoCategoriaPage> {
     carregar();
   }
 
+  // ================== SUPABASE ==================
   Future<void> carregar() async {
-    final url = Uri.parse(
-      "http://localhost:8080/app/distribuicao_categoria.php",
-    );
-    final response = await http.get(url);
+    setState(() => loading = true);
 
-    final json = jsonDecode(response.body);
+    final res = await supabase
+        .from('entradas')
+        .select('categoria, valor_recebido')
+        .eq('user_id', userId);
+
+    final Map<String, double> mapa = {};
+
+    for (final e in res) {
+      final categoria = (e['categoria'] ?? 'Outros').toString();
+      final valor = double.tryParse(e['valor_recebido'].toString()) ?? 0;
+
+      mapa[categoria] = (mapa[categoria] ?? 0) + valor;
+    }
+
     setState(() {
-      dados = json["data"] ?? [];
+      dados = mapa.entries
+          .map((e) => {'categoria': e.key, 'total': e.value})
+          .toList();
       loading = false;
     });
   }
 
+  // ================== TOTAL ==================
   double get valorTotal {
     double total = 0;
     for (var item in dados) {
-      total += double.tryParse(item["total"].toString()) ?? 0;
+      total += (item["total"] as num).toDouble();
     }
     return total;
   }
 
+  // ================== VISUAL (INALTERADO) ==================
   BoxDecoration neonBox() {
     return BoxDecoration(
       color: Colors.black,
@@ -121,13 +138,12 @@ class _DistribuicaoCategoriaPageState extends State<DistribuicaoCategoriaPage> {
     );
   }
 
-  /// 🔹 Gera as fatias do gráfico com porcentagem + cores + títulos
+  // ================== FATIAS ==================
   List<PieChartSectionData> gerarFatias() {
     return List.generate(dados.length, (i) {
       final item = dados[i];
       final total = valorTotal;
-
-      final valor = double.tryParse(item["total"].toString()) ?? 0;
+      final valor = (item["total"] as num).toDouble();
       final percentual = total == 0 ? 0 : (valor / total) * 100;
 
       return PieChartSectionData(
@@ -145,14 +161,14 @@ class _DistribuicaoCategoriaPageState extends State<DistribuicaoCategoriaPage> {
     });
   }
 
-  /// 🔹 Legenda com cor + categoria + valor total
+  // ================== LEGENDA ==================
   Widget buildLegenda() {
     return ListView.separated(
       itemCount: dados.length,
       separatorBuilder: (_, __) => const Divider(color: Colors.white10),
       itemBuilder: (_, i) {
         final item = dados[i];
-        final valor = double.tryParse(item["total"].toString()) ?? 0;
+        final valor = (item["total"] as num).toDouble();
 
         return Row(
           children: [
@@ -172,7 +188,6 @@ class _DistribuicaoCategoriaPageState extends State<DistribuicaoCategoriaPage> {
             ),
             const SizedBox(width: 10),
 
-            //CATEGORIA
             Expanded(
               child: Text(
                 item["categoria"],
@@ -180,7 +195,6 @@ class _DistribuicaoCategoriaPageState extends State<DistribuicaoCategoriaPage> {
               ),
             ),
 
-            // VALOR
             Text(
               "R\$ ${valor.toStringAsFixed(2)}",
               style: const TextStyle(

@@ -1,8 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:http/http.dart' as http;
-import 'package:zeroone/pages/entradas_relatorios_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 const Color corPrincipal = Color(0xFFBBFB04);
 
@@ -14,8 +12,10 @@ class CrescimentoAnualPage extends StatefulWidget {
 }
 
 class _CrescimentoAnualPageState extends State<CrescimentoAnualPage> {
+  final supabase = Supabase.instance.client;
+
   bool loading = true;
-  List dados = [];
+  List<Map<String, dynamic>> dados = [];
 
   @override
   void initState() {
@@ -24,15 +24,30 @@ class _CrescimentoAnualPageState extends State<CrescimentoAnualPage> {
   }
 
   Future<void> carregar() async {
-    final url = Uri.parse("http://localhost:8080/app/crescimento_anual.php");
-    final response = await http.get(url);
+    final userId = supabase.auth.currentUser!.id;
 
-    final json = jsonDecode(response.body);
+    final response = await supabase
+        .from('entradas')
+        .select('data_competencia, valor_recebido')
+        .eq('user_id', userId);
 
-    setState(() {
-      dados = json["data"];
-      loading = false;
-    });
+    final Map<int, double> acumulado = {};
+
+    for (var item in response) {
+      final data = DateTime.parse(item['data_competencia']);
+      final mes = data.month;
+
+      acumulado[mes] =
+          (acumulado[mes] ?? 0) + (item['valor_recebido'] as num).toDouble();
+    }
+
+    dados = acumulado.entries
+        .map((e) => {'mes': e.key, 'total': e.value})
+        .toList();
+
+    dados.sort((a, b) => a['mes'].compareTo(b['mes']));
+
+    setState(() => loading = false);
   }
 
   BoxDecoration neonBox() {
@@ -79,9 +94,7 @@ class _CrescimentoAnualPageState extends State<CrescimentoAnualPage> {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.all(16),
@@ -92,72 +105,9 @@ class _CrescimentoAnualPageState extends State<CrescimentoAnualPage> {
                           maxX: 12,
                           minY: 0,
                           maxY: _getMaxY(),
-
                           gridData: FlGridData(show: false),
                           borderData: FlBorderData(show: false),
-
-                          titlesData: FlTitlesData(
-                            topTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            rightTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                interval: 1,
-                                reservedSize: 30,
-                                getTitlesWidget: (value, meta) {
-                                  const meses = [
-                                    "",
-                                    "Jan",
-                                    "Fev",
-                                    "Mar",
-                                    "Abr",
-                                    "Mai",
-                                    "Jun",
-                                    "Jul",
-                                    "Ago",
-                                    "Set",
-                                    "Out",
-                                    "Nov",
-                                    "Dez",
-                                  ];
-
-                                  if (value < 1 || value > 12) {
-                                    return const SizedBox();
-                                  }
-                                  return Text(
-                                    meses[value.toInt()],
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 14,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                interval: 10000,
-                                reservedSize: 60,
-                                getTitlesWidget: (value, meta) {
-                                  return Text(
-                                    "R\$ ${value.toInt()}",
-                                    style: const TextStyle(
-                                      color: Colors.white54,
-                                      fontSize: 12,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-
+                          titlesData: _titles(),
                           lineBarsData: [
                             LineChartBarData(
                               isCurved: true,
@@ -171,21 +121,11 @@ class _CrescimentoAnualPageState extends State<CrescimentoAnualPage> {
                                     corPrincipal.withOpacity(0.35),
                                     corPrincipal.withOpacity(0.02),
                                   ],
-                                  begin: AlignmentGeometry.topCenter,
-                                  end: AlignmentGeometry.bottomCenter,
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
                                 ),
                               ),
-                              dotData: FlDotData(
-                                show: true,
-                                getDotPainter: (spot, percent, bar, index) {
-                                  return FlDotCirclePainter(
-                                    radius: 4,
-                                    color: corPrincipal,
-                                    strokeWidth: 2,
-                                    strokeColor: corPrincipal.withOpacity(0.9),
-                                  );
-                                },
-                              ),
+                              dotData: FlDotData(show: true),
                             ),
                           ],
                         ),
@@ -198,29 +138,68 @@ class _CrescimentoAnualPageState extends State<CrescimentoAnualPage> {
     );
   }
 
-  /// Converte dados do backend em pontos do gráfico
-  List<FlSpot> _buildSpots() {
-    return dados.map((item) {
-      double mes = double.tryParse(item["mes"].toString()) ?? 0;
-      double total =
-          double.tryParse(item["total"].toString().replaceAll(",", ".")) ?? 0;
-      return FlSpot(mes, total);
-    }).toList();
+  FlTitlesData _titles() {
+    const meses = [
+      "",
+      "Jan",
+      "Fev",
+      "Mar",
+      "Abr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Ago",
+      "Set",
+      "Out",
+      "Nov",
+      "Dez",
+    ];
+
+    return FlTitlesData(
+      topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      bottomTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          interval: 1,
+          getTitlesWidget: (value, meta) {
+            if (value < 1 || value > 12) return const SizedBox();
+            return Text(
+              meses[value.toInt()],
+              style: const TextStyle(color: Colors.white70),
+            );
+          },
+        ),
+      ),
+      leftTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          reservedSize: 60,
+          getTitlesWidget: (value, meta) => Text(
+            "R\$ ${value.toInt()}",
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+        ),
+      ),
+    );
   }
 
-  /// MaxY arredondado sempre para o próximo múltiplo de 10.000
+  List<FlSpot> _buildSpots() {
+    return dados
+        .map(
+          (e) => FlSpot((e['mes'] as int).toDouble(), (e['total'] as double)),
+        )
+        .toList();
+  }
+
   double _getMaxY() {
-    double maxValue = 0;
-
-    for (var item in dados) {
-      double val =
-          double.tryParse(item["total"].toString().replaceAll(",", ".")) ?? 0;
-      if (val > maxValue) maxValue = val;
+    double max = 0;
+    for (var d in dados) {
+      if (d['total'] > max) max = d['total'];
     }
-
-    // Arredonda para cima para múltiplo de 10k
-    double next = ((maxValue / 10000).ceil() * 10000).toDouble();
-
-    return next == 0 ? 10000 : next; // garante mínimo de 10k
+    return ((max / 10000).ceil() * 10000).toDouble().clamp(
+      10000,
+      double.infinity,
+    );
   }
 }

@@ -1,13 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:ui';
 
-const String apiBase = "http://localhost:8080/app/";
 const Color corPrincipal = Color(0xFFBBFB04);
 const Color corPendente = Colors.redAccent;
+
 final supabase = Supabase.instance.client;
 
 class EntradasListagemPage extends StatefulWidget {
@@ -20,6 +18,7 @@ class EntradasListagemPage extends StatefulWidget {
 class _EntradasListagemPageState extends State<EntradasListagemPage> {
   List entradas = [];
   bool loading = true;
+
   String get userId => supabase.auth.currentUser!.id;
 
   final TextEditingController valorController = TextEditingController();
@@ -39,6 +38,7 @@ class _EntradasListagemPageState extends State<EntradasListagemPage> {
     "Assinaturas",
     "Outros",
   ];
+
   final List<String> formasPagamento = [
     "Pix",
     "Crédito",
@@ -46,7 +46,9 @@ class _EntradasListagemPageState extends State<EntradasListagemPage> {
     "Dinheiro",
     "Boleto",
   ];
+
   final List<String> contasBancarias = ["Bradesco", "Caixa", "Nubank", "Itaú"];
+
   final List<String> statusList = ["Recebido", "Pendente"];
 
   @override
@@ -55,21 +57,23 @@ class _EntradasListagemPageState extends State<EntradasListagemPage> {
     carregarEntradas();
   }
 
+  // ================= BUSCAR ENTRADAS =================
   Future<void> carregarEntradas() async {
     setState(() => loading = true);
 
-    final url = Uri.parse("${apiBase}listar_entradas.php?user_id=$userId");
-    final response = await http.get(url);
-    final data = jsonDecode(response.body);
+    final res = await supabase
+        .from('entradas')
+        .select()
+        .eq('user_id', userId)
+        .order('data_recebimento', ascending: false);
 
-    if (data["success"]) {
-      setState(() {
-        entradas = data["entradas"];
-        loading = false;
-      });
-    }
+    setState(() {
+      entradas = res;
+      loading = false;
+    });
   }
 
+  // ================= SALVAR ENTRADA =================
   Future<void> salvarEntrada() async {
     if (valorController.text.isEmpty ||
         identificadorController.text.isEmpty ||
@@ -81,34 +85,23 @@ class _EntradasListagemPageState extends State<EntradasListagemPage> {
       return;
     }
 
-    final url = Uri.parse("${apiBase}adicionar_entrada.php");
+    await supabase.from('entradas').insert({
+      'user_id': userId,
+      'data_recebimento': DateFormat('yyyy-MM-dd').format(dataRecebimento!),
+      'data_competencia': DateFormat('yyyy-MM-dd').format(dataCompetencia!),
+      'valor_recebido': double.parse(valorController.text),
+      'identificador': identificadorController.text,
+      'categoria': categoriaSelecionada,
+      'forma_pagamento': formaPagamentoSelecionada,
+      'conta_destino': contaDestinoSelecionada,
+      'status': statusSelecionado,
+    });
 
-    final Map<String, dynamic> dados = {
-      "user_id": userId,
-      "data_recebimento": DateFormat("yyyy-MM-dd").format(dataRecebimento!),
-      "data_competencia": DateFormat("yyyy-MM-dd").format(dataCompetencia!),
-      "valor_recebido": double.parse(valorController.text),
-      "identificador": identificadorController.text,
-      "categoria": categoriaSelecionada,
-      "forma_pagamento": formaPagamentoSelecionada,
-      "conta_destino": contaDestinoSelecionada,
-      "status": statusSelecionado,
-    };
-
-    final response = await http.post(
-      url,
-      body: jsonEncode(dados),
-      headers: {"Content-Type": "application/json"},
-    );
-
-    final data = jsonDecode(response.body);
-
-    if (data["success"]) {
-      Navigator.pop(context);
-      await carregarEntradas();
-    }
+    Navigator.pop(context);
+    await carregarEntradas();
   }
 
+  // ================= FORM =================
   void abrirFormulario() {
     showModalBottomSheet(
       isScrollControlled: true,
@@ -189,6 +182,7 @@ class _EntradasListagemPageState extends State<EntradasListagemPage> {
                   statusSelecionado,
                   (v) => setState(() => statusSelecionado = v),
                 ),
+
                 const SizedBox(height: 20),
 
                 ElevatedButton(
@@ -208,6 +202,7 @@ class _EntradasListagemPageState extends State<EntradasListagemPage> {
     );
   }
 
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -230,7 +225,7 @@ class _EntradasListagemPageState extends State<EntradasListagemPage> {
               itemCount: entradas.length,
               itemBuilder: (_, i) {
                 final item = entradas[i];
-                final bool pendente = item["status"] == "Pendente";
+                final bool pendente = item['status'] == 'Pendente';
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -256,23 +251,23 @@ class _EntradasListagemPageState extends State<EntradasListagemPage> {
                       color: pendente ? corPendente : corPrincipal,
                     ),
                     title: Text(
-                      item["identificador"] ?? "-",
+                      item['identificador'] ?? '-',
                       style: TextStyle(
                         color: pendente ? corPendente : corPrincipal,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     subtitle: Text(
-                      "Recebimento: ${item["data_recebimento"]}\n"
-                      "Competência: ${item["data_competencia"]}\n"
-                      "Categoria: ${item["categoria"]}\n"
-                      "Forma: ${item["forma_pagamento"]}\n"
-                      "Conta: ${item["conta_destino"]}\n"
-                      "Status: ${item["status"]}",
+                      "Recebimento: ${item['data_recebimento']}\n"
+                      "Competência: ${item['data_competencia']}\n"
+                      "Categoria: ${item['categoria']}\n"
+                      "Forma: ${item['forma_pagamento']}\n"
+                      "Conta: ${item['conta_destino']}\n"
+                      "Status: ${item['status']}",
                       style: TextStyle(color: Colors.white.withOpacity(0.75)),
                     ),
                     trailing: Text(
-                      "R\$ ${item["valor_recebido"]}",
+                      "R\$ ${item['valor_recebido']}",
                       style: TextStyle(
                         color: pendente ? corPendente : corPrincipal,
                         fontWeight: FontWeight.bold,
@@ -285,6 +280,7 @@ class _EntradasListagemPageState extends State<EntradasListagemPage> {
     );
   }
 
+  // ================= CAMPOS =================
   Widget _campoTexto(TextEditingController c, String label, bool numero) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -292,11 +288,16 @@ class _EntradasListagemPageState extends State<EntradasListagemPage> {
         controller: c,
         keyboardType: numero ? TextInputType.number : TextInputType.text,
         style: const TextStyle(color: corPrincipal),
+        cursorColor: corPrincipal,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(color: corPrincipal),
+          floatingLabelStyle: const TextStyle(color: corPrincipal),
           enabledBorder: const UnderlineInputBorder(
             borderSide: BorderSide(color: corPrincipal),
+          ),
+          focusedBorder: const UnderlineInputBorder(
+            borderSide: BorderSide(color: corPrincipal, width: 2),
           ),
         ),
       ),
@@ -313,6 +314,15 @@ class _EntradasListagemPageState extends State<EntradasListagemPage> {
       dropdownColor: Colors.black,
       value: value,
       hint: Text(label, style: const TextStyle(color: corPrincipal)),
+      iconEnabledColor: corPrincipal,
+      decoration: const InputDecoration(
+        enabledBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: corPrincipal),
+        ),
+        focusedBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: corPrincipal, width: 2),
+        ),
+      ),
       items: items
           .map(
             (c) => DropdownMenuItem(

@@ -1,10 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:fl_chart/fl_chart.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zeroone/pages/contas_visao_geral.dart';
 
-const String apiBase = "http://localhost:8080/app/";
+final supabase = Supabase.instance.client;
 
 class EntradasPorMesPage extends StatefulWidget {
   const EntradasPorMesPage({super.key});
@@ -17,6 +16,8 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
   bool loading = true;
   List<Map<String, dynamic>> dados = [];
 
+  String get userId => supabase.auth.currentUser!.id;
+
   @override
   void initState() {
     super.initState();
@@ -25,29 +26,38 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
 
   Future<void> carregarDados() async {
     try {
-      final url = Uri.parse("${apiBase}entradas_por_mes.php");
-      final response = await http.get(url);
+      final res = await supabase
+          .from('entradas')
+          .select('data_competencia, valor_recebido')
+          .eq('user_id', userId);
 
-      final json = jsonDecode(response.body);
+      final Map<String, double> totalPorMes = {};
 
-      if (json["success"]) {
-        setState(() {
-          final lista = json["entradas"];
+      for (final e in res) {
+        final data = DateTime.parse(e['data_competencia']);
+        final chaveMes =
+            "${data.year.toString().padLeft(4, '0')}-${data.month.toString().padLeft(2, '0')}";
 
-          if (lista != null && lista is List) {
-            setState(() {
-              dados = List<Map<String, dynamic>>.from(lista);
-            });
-          } else {
-            setState(() {
-              dados = [];
-            });
-          }
-          loading = false;
-        });
+        final valor = double.tryParse(e['valor_recebido'].toString()) ?? 0;
+
+        totalPorMes[chaveMes] = (totalPorMes[chaveMes] ?? 0) + valor;
       }
+
+      final lista = totalPorMes.entries.map((e) {
+        return {'mes': e.key, 'total': e.value.toStringAsFixed(2)};
+      }).toList();
+
+      lista.sort(
+        (a, b) => (a['mes'] as DateTime).compareTo(b['mes'] as DateTime),
+      );
+
+      setState(() {
+        dados = lista;
+        loading = false;
+      });
     } catch (e) {
-      print("Erro: $e");
+      debugPrint("Erro ao carregar entradas por mês: $e");
+      setState(() => loading = false);
     }
   }
 
@@ -94,6 +104,7 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
                               strokeWidth: 1,
                             ),
                           ),
+
                           titlesData: FlTitlesData(
                             leftTitles: AxisTitles(
                               sideTitles: SideTitles(
@@ -113,19 +124,17 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
                             rightTitles: const AxisTitles(
                               sideTitles: SideTitles(showTitles: false),
                             ),
-
                             topTitles: const AxisTitles(
                               sideTitles: SideTitles(showTitles: false),
                             ),
-
                             bottomTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
                                 interval: 1,
                                 getTitlesWidget: (value, meta) {
                                   if (value.toInt() < dados.length) {
-                                    final mes = dados[value.toInt()]["mes"];
-                                    final partes = mes.split("-");
+                                    final mes = dados[value.toInt()]['mes'];
+                                    final partes = mes.split('-');
                                     return Text(
                                       "${partes[1]}/${partes[0]}",
                                       style: const TextStyle(
@@ -139,9 +148,10 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
                               ),
                             ),
                           ),
+
                           barGroups: dados.asMap().entries.map((e) {
-                            int index = e.key;
-                            double valor = double.parse(e.value["total"]);
+                            final index = e.key;
+                            final valor = double.parse(e.value['total']);
 
                             return BarChartGroupData(
                               x: index,
@@ -151,7 +161,6 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
                                   width: 18,
                                   color: corPrincipal,
                                   borderRadius: BorderRadius.circular(6),
-
                                   backDrawRodData: BackgroundBarChartRodData(
                                     show: true,
                                     toY: valor,

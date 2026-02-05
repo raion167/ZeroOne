@@ -1,12 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:syncfusion_flutter_gauges/gauges.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'menu_lateral.dart';
 
 const Color corPrincipal = Color(0xFFBBFB04);
+final supabase = Supabase.instance.client;
 
 class RelatorioEstoquePage extends StatefulWidget {
   final String nomeUsuario;
@@ -24,17 +23,17 @@ class RelatorioEstoquePage extends StatefulWidget {
 
 class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
   bool carregando = true;
-  List<dynamic> relatorio = [];
+
+  List<Map<String, dynamic>> relatorio = [];
+  List<String> usuarios = [];
 
   String tipoGrafico = "Colunas";
   String campoX = "produto";
   String campoY = "quantidade";
-
-  final camposDisponiveis = ["produto", "quantidade", "usuario"];
-
+  final camposTexto = ["produto", "usuario"];
+  final camposNumero = ["quantidade"];
   DateTimeRange? filtroData;
   String? filtroUsuario;
-  List<String> usuarios = [];
 
   @override
   void initState() {
@@ -42,34 +41,53 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
     carregarRelatorio();
   }
 
+  // ================= CARREGAR RELATÓRIO =================
   Future<void> carregarRelatorio() async {
     setState(() => carregando = true);
 
-    String query = "";
-    if (filtroUsuario != null) query += "&usuario=$filtroUsuario";
-    if (filtroData != null) {
-      query +=
-          "&data_inicio=${filtroData!.start.toIso8601String()}"
-          "&data_fim=${filtroData!.end.toIso8601String()}";
-    }
+    try {
+      var query = supabase.from('movimentacoes_estoque').select('''
+        quantidade,
+        data_movimentacao,
+        estoque:produto_id(nome),
+        usuario:user_id(nome)
+      ''');
 
-    final response = await http.get(
-      Uri.parse("http://localhost:8080/app/relatorio_estoque.php?$query"),
-    );
+      if (filtroUsuario != null) {
+        query = query.eq('user_id', filtroUsuario!);
+      }
 
-    final data = jsonDecode(response.body);
+      if (filtroData != null) {
+        query = query
+            .gte('data_movimentacao', filtroData!.start.toIso8601String())
+            .lte('data_movimentacao', filtroData!.end.toIso8601String());
+      }
 
-    if (data["success"] == true) {
-      setState(() {
-        relatorio = List<dynamic>.from(data["dados"] ?? []);
-        usuarios = List<String>.from(data["usuarios"] ?? []);
-        carregando = false;
-      });
-    } else {
+      final response = await query;
+
+      relatorio = List<Map<String, dynamic>>.from(response).map((item) {
+        return {
+          "produto": item['estoque']?['nome'] ?? "-",
+          "quantidade": item['quantidade'] ?? 0,
+          "usuario": item['usuario']?['nome'] ?? "-",
+        };
+      }).toList();
+
+      // carregar usuários para filtro
+      final usuariosResp = await supabase.from('usuarios').select('id, nome');
+
+      usuarios = usuariosResp.map<String>((u) => u['id'].toString()).toList();
+
       setState(() => carregando = false);
+    } catch (e) {
+      setState(() => carregando = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Erro ao carregar relatório: $e")));
     }
   }
 
+  // ================= DATE PICKER =================
   Future<void> selecionarPeriodo() async {
     final picked = await showDateRangePicker(
       context: context,
@@ -84,33 +102,18 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
     }
   }
 
+  // ================= GRÁFICO =================
   Widget _buildGrafico() {
     switch (tipoGrafico) {
       case "Linhas":
         return SfCartesianChart(
           backgroundColor: Colors.black,
-          title: ChartTitle(
-            text: "Relatório de Estoque",
-            textStyle: TextStyle(color: corPrincipal),
-          ),
-          primaryXAxis: CategoryAxis(
-            labelStyle: TextStyle(color: corPrincipal),
-            axisLine: AxisLine(color: corPrincipal),
-            majorGridLines: const MajorGridLines(width: 0),
-          ),
-          primaryYAxis: NumericAxis(
-            labelStyle: TextStyle(color: corPrincipal),
-            majorGridLines: MajorGridLines(
-              color: corPrincipal.withOpacity(0.15),
-            ),
-          ),
           series: [
-            LineSeries<dynamic, String>(
+            LineSeries(
               dataSource: relatorio,
-              xValueMapper: (d, _) => d[campoX]?.toString() ?? "",
-              yValueMapper: (d, _) => num.tryParse(d[campoY].toString()) ?? 0,
+              xValueMapper: (d, _) => d[campoX],
+              yValueMapper: (d, _) => d[campoY],
               color: corPrincipal,
-              markerSettings: const MarkerSettings(isVisible: true),
             ),
           ],
         );
@@ -118,32 +121,12 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
       case "Colunas":
         return SfCartesianChart(
           backgroundColor: Colors.black,
-          title: ChartTitle(
-            text: "Relatório de Estoque",
-            textStyle: TextStyle(color: corPrincipal),
-          ),
-          primaryXAxis: CategoryAxis(
-            labelStyle: TextStyle(color: corPrincipal),
-            axisLine: AxisLine(color: corPrincipal),
-            majorGridLines: const MajorGridLines(width: 0),
-          ),
-          primaryYAxis: NumericAxis(
-            labelStyle: TextStyle(color: corPrincipal),
-            axisLine: AxisLine(color: corPrincipal),
-            majorGridLines: MajorGridLines(
-              color: corPrincipal.withOpacity(0.15),
-            ),
-          ),
           series: [
-            ColumnSeries<dynamic, String>(
+            ColumnSeries(
               dataSource: relatorio,
-              xValueMapper: (d, _) => d[campoX]?.toString() ?? "",
-              yValueMapper: (d, _) => num.tryParse(d[campoY].toString()) ?? 0,
+              xValueMapper: (d, _) => d[campoX],
+              yValueMapper: (d, _) => d[campoY],
               color: corPrincipal,
-              dataLabelSettings: DataLabelSettings(
-                isVisible: true,
-                textStyle: TextStyle(color: corPrincipal),
-              ),
             ),
           ],
         );
@@ -151,23 +134,11 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
       case "Pizza":
         return SfCircularChart(
           backgroundColor: Colors.black,
-          title: ChartTitle(
-            text: "Distribuição de Estoque",
-            textStyle: TextStyle(color: corPrincipal),
-          ),
-          legend: Legend(
-            isVisible: true,
-            textStyle: TextStyle(color: corPrincipal),
-          ),
           series: [
-            PieSeries<dynamic, String>(
+            PieSeries(
               dataSource: relatorio,
-              xValueMapper: (d, _) => d[campoX]?.toString() ?? "",
-              yValueMapper: (d, _) => num.tryParse(d[campoY].toString()) ?? 0,
-              dataLabelSettings: DataLabelSettings(
-                isVisible: true,
-                textStyle: TextStyle(color: corPrincipal),
-              ),
+              xValueMapper: (d, _) => d[campoX],
+              yValueMapper: (d, _) => d[campoY],
             ),
           ],
         );
@@ -175,29 +146,22 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
       case "KPI":
         final total = relatorio.fold<num>(
           0,
-          (sum, item) => sum + (num.tryParse(item[campoY].toString()) ?? 0),
+          (sum, item) => sum + (item[campoY] ?? 0),
         );
 
         return SfRadialGauge(
           backgroundColor: Colors.black,
-          title: GaugeTitle(
-            text: "KPI - Total $campoY",
-            textStyle: TextStyle(color: corPrincipal),
-          ),
           axes: [
             RadialAxis(
-              minimum: 0,
-              maximum: total * 1.5,
-              axisLabelStyle: GaugeTextStyle(color: corPrincipal),
               pointers: [
                 RangePointer(value: total.toDouble(), color: corPrincipal),
               ],
               annotations: [
                 GaugeAnnotation(
                   widget: Text(
-                    total.toStringAsFixed(0),
+                    total.toString(),
                     style: TextStyle(
-                      fontSize: 28,
+                      fontSize: 26,
                       fontWeight: FontWeight.bold,
                       color: corPrincipal,
                     ),
@@ -209,28 +173,20 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
         );
 
       default:
-        return const Center(child: Text("Selecione um gráfico"));
+        return const SizedBox();
     }
   }
 
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-
       appBar: AppBar(
+        title: const Text("Relatório Estoque"),
         backgroundColor: Colors.black,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: corPrincipal),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          "Relatório de Estoque",
-          style: TextStyle(color: corPrincipal, fontWeight: FontWeight.bold),
-        ),
+        foregroundColor: corPrincipal,
       ),
-
       body: BaseScaffold(
         titulo: "",
         nomeUsuario: widget.nomeUsuario,
@@ -239,73 +195,40 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
             ? const Center(child: CircularProgressIndicator())
             : Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        _filtroDropdown(
-                          value: tipoGrafico,
-                          items: ["Linhas", "Colunas", "Pizza", "KPI"],
-                          labelBuilder: (v) => "Gráfico: $v",
-                          onChanged: (v) => setState(() => tipoGrafico = v!),
-                        ),
-                        _filtroDropdown(
-                          value: campoX,
-                          items: camposDisponiveis,
-                          labelBuilder: (v) => "Eixo X: $v",
-                          onChanged: (v) => setState(() => campoX = v!),
-                        ),
-                        _filtroDropdown(
-                          value: campoY,
-                          items: camposDisponiveis,
-                          labelBuilder: (v) => "Eixo Y: $v",
-                          onChanged: (v) => setState(() => campoY = v!),
-                        ),
-                        _filtroDropdown(
-                          value: filtroUsuario,
-                          items: usuarios,
-                          hint: "Usuário",
-                          onChanged: (v) {
-                            setState(() => filtroUsuario = v);
-                            carregarRelatorio();
-                          },
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: selecionarPeriodo,
-                          icon: const Icon(Icons.date_range),
-                          label: const Text("Data"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: corPrincipal,
-                            foregroundColor: Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: corPrincipal.withOpacity(0.7),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: corPrincipal.withOpacity(0.25),
-                              blurRadius: 12,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                        child: _buildGrafico(),
+                  Wrap(
+                    spacing: 10,
+                    children: [
+                      _dropdown(tipoGrafico, [
+                        "Linhas",
+                        "Colunas",
+                        "Pizza",
+                        "KPI",
+                      ], (v) => setState(() => tipoGrafico = v!)),
+                      _dropdown(
+                        campoX,
+                        camposTexto,
+                        (v) => setState(() => campoX = v!),
                       ),
-                    ),
+                      _dropdown(
+                        campoY,
+                        camposNumero,
+                        (v) => setState(() => campoY = v!),
+                      ),
+                      _dropdown(filtroUsuario, usuarios, (v) {
+                        filtroUsuario = v;
+                        carregarRelatorio();
+                      }, hint: "Usuário"),
+                      ElevatedButton(
+                        onPressed: selecionarPeriodo,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: corPrincipal,
+                          foregroundColor: Colors.black,
+                        ),
+                        child: const Text("Data"),
+                      ),
+                    ],
                   ),
+                  Expanded(child: _buildGrafico()),
                 ],
               ),
       ),
@@ -313,48 +236,32 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
   }
 }
 
-Widget _filtroDropdown({
-  required String? value,
-  required List<String> items,
-  required ValueChanged<String?> onChanged,
+// ================= DROPDOWN =================
+Widget _dropdown(
+  String? value,
+  List<String> items,
+  ValueChanged<String?> onChanged, {
   String? hint,
-  String Function(String)? labelBuilder,
 }) {
   return SizedBox(
-    width: 200,
+    width: 180,
     child: DropdownButtonFormField<String>(
       value: value,
-      isExpanded: true,
       dropdownColor: Colors.black,
       iconEnabledColor: corPrincipal,
-      style: TextStyle(color: corPrincipal),
-      hint: hint != null
-          ? Text(hint, style: TextStyle(color: corPrincipal))
-          : null,
+      style: const TextStyle(color: corPrincipal),
+      hint: hint != null ? Text(hint) : null,
       decoration: InputDecoration(
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: corPrincipal),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: corPrincipal, width: 2),
         ),
       ),
-      items: items.map((e) {
-        return DropdownMenuItem<String>(
-          value: e,
-          child: Text(
-            labelBuilder != null ? labelBuilder(e) : e,
-            style: TextStyle(color: corPrincipal),
-          ),
-        );
-      }).toList(),
+      items: items
+          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+          .toList(),
       onChanged: onChanged,
     ),
   );

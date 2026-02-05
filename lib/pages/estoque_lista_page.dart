@@ -1,7 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'menu_lateral.dart';
+
+final supabase = Supabase.instance.client;
 
 class EstoqueListaPage extends StatefulWidget {
   final String nomeUsuario;
@@ -18,58 +19,42 @@ class EstoqueListaPage extends StatefulWidget {
 }
 
 class _EstoqueListaPageState extends State<EstoqueListaPage> {
-  List produtos = [];
+  List<Map<String, dynamic>> produtos = [];
   bool carregando = true;
 
-  // 🔹 Função para buscar os produtos do backend PHP
+  // 🔹 BUSCAR PRODUTOS NO SUPABASE
   Future<void> carregarProdutos() async {
+    setState(() => carregando = true);
+
     try {
-      final response = await http.get(
-        Uri.parse("http://localhost:8080/app/listar_estoque.php"),
-      );
+      final res = await supabase.from('estoque').select().order('nome');
 
-      final data = jsonDecode(response.body);
-
-      if (data["success"] == true) {
-        setState(() {
-          produtos = data["itens"];
-          carregando = false;
-        });
-      } else {
-        setState(() {
-          carregando = false;
-        });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Nenhum produto encontrado.")));
-      }
+      setState(() {
+        produtos = List<Map<String, dynamic>>.from(res);
+        carregando = false;
+      });
     } catch (e) {
       setState(() => carregando = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Erro ao carregar produtos: $e")));
+      ).showSnackBar(SnackBar(content: Text("Erro ao carregar estoque: $e")));
     }
   }
 
+  // 🔹 DELETAR PRODUTO
   Future<void> deletarProduto(String id) async {
     try {
-      final response = await http.post(
-        Uri.parse("http://localhost:8080/app/deletar_estoque.php"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"id": id}),
-      );
-
-      final data = jsonDecode(response.body);
+      await supabase.from('estoque').delete().eq('id', id);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(data["message"] ?? "Erro ao deletar.")),
+        const SnackBar(content: Text("Produto removido com sucesso")),
       );
 
-      if (data["success"] == true) carregarProdutos();
+      carregarProdutos();
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Erro ao excluir produto: $e")));
+      ).showSnackBar(SnackBar(content: Text("Erro ao deletar produto: $e")));
     }
   }
 
@@ -91,15 +76,22 @@ class _EstoqueListaPageState extends State<EstoqueListaPage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
+
       body: carregando
           ? const Center(child: CircularProgressIndicator())
           : produtos.isEmpty
-          ? const Center(child: Text("Nenhum produto encontrado."))
+          ? const Center(
+              child: Text(
+                "Nenhum produto encontrado.",
+                style: TextStyle(color: Colors.white70),
+              ),
+            )
           : ListView.builder(
               padding: const EdgeInsets.all(8),
               itemCount: produtos.length,
               itemBuilder: (context, index) {
                 final item = produtos[index];
+
                 return Card(
                   color: Colors.black,
                   shadowColor: corPrincipal.withOpacity(0.6),
@@ -115,6 +107,7 @@ class _EstoqueListaPageState extends State<EstoqueListaPage> {
                       backgroundColor: corPrincipal,
                       child: const Icon(Icons.inventory, color: Colors.black),
                     ),
+
                     title: Text(
                       item["nome"],
                       style: const TextStyle(
@@ -122,9 +115,16 @@ class _EstoqueListaPageState extends State<EstoqueListaPage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+
                     subtitle: Text(
-                      "Quantidade: ${item["quantidade"]} | Preço: R\$ ${item["preco"]}",
+                      "Quantidade: ${item["quantidade"]} | "
+                      "Preço: R\$ ${item["preco"]}",
                       style: const TextStyle(color: Colors.white),
+                    ),
+
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.redAccent),
+                      onPressed: () => deletarProduto(item["id"]),
                     ),
                   ),
                 );

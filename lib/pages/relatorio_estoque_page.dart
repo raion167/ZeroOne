@@ -30,8 +30,10 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
   String tipoGrafico = "Colunas";
   String campoX = "produto";
   String campoY = "quantidade";
+
   final camposTexto = ["produto", "usuario"];
   final camposNumero = ["quantidade"];
+
   DateTimeRange? filtroData;
   String? filtroUsuario;
 
@@ -53,10 +55,13 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
         usuario:user_id(nome)
       ''');
 
+      /// FILTRO USUÁRIO (separando id do "nome|id")
       if (filtroUsuario != null) {
-        query = query.eq('user_id', filtroUsuario!);
+        final id = filtroUsuario!.split("|").last;
+        query = query.eq('user_id', id);
       }
 
+      /// FILTRO DATA
       if (filtroData != null) {
         query = query
             .gte('data_movimentacao', filtroData!.start.toIso8601String())
@@ -66,24 +71,38 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
       final response = await query;
 
       relatorio = List<Map<String, dynamic>>.from(response).map((item) {
+        final qtd = item['quantidade'];
+
+        num quantidadeNumerica = 0;
+        if (qtd is num) {
+          quantidadeNumerica = qtd;
+        } else if (qtd != null) {
+          quantidadeNumerica = num.tryParse(qtd.toString()) ?? 0;
+        }
+
         return {
-          "produto": item['estoque']?['nome'] ?? "-",
-          "quantidade": item['quantidade'] ?? 0,
-          "usuario": item['usuario']?['nome'] ?? "-",
+          "produto": item['estoque']?['nome']?.toString() ?? "-",
+          "quantidade": quantidadeNumerica,
+          "usuario": item['usuario']?['nome']?.toString() ?? "-",
         };
       }).toList();
 
-      // carregar usuários para filtro
+      /// GARANTE QUE Y É NUMÉRICO
+      campoY = "quantidade";
+
+      /// CARREGAR USUÁRIOS
       final usuariosResp = await supabase.from('usuarios').select('id, nome');
 
-      usuarios = usuariosResp.map<String>((u) => u['id'].toString()).toList();
+      usuarios = usuariosResp
+          .map<String>((u) => "${u['nome']}|${u['id']}")
+          .toList();
 
       setState(() => carregando = false);
     } catch (e) {
       setState(() => carregando = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Erro ao carregar relatório: $e")));
+      ).showSnackBar(SnackBar(content: Text("Erro relatório: $e")));
     }
   }
 
@@ -104,6 +123,12 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
 
   // ================= GRÁFICO =================
   Widget _buildGrafico() {
+    num parseValor(dynamic valor) {
+      if (valor == null) return 0;
+      if (valor is num) return valor;
+      return num.tryParse(valor.toString()) ?? 0;
+    }
+
     switch (tipoGrafico) {
       case "Linhas":
         return SfCartesianChart(
@@ -111,8 +136,8 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
           series: [
             LineSeries(
               dataSource: relatorio,
-              xValueMapper: (d, _) => d[campoX],
-              yValueMapper: (d, _) => d[campoY],
+              xValueMapper: (d, _) => d[campoX]?.toString() ?? "",
+              yValueMapper: (d, _) => parseValor(d[campoY]),
               color: corPrincipal,
             ),
           ],
@@ -124,8 +149,8 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
           series: [
             ColumnSeries(
               dataSource: relatorio,
-              xValueMapper: (d, _) => d[campoX],
-              yValueMapper: (d, _) => d[campoY],
+              xValueMapper: (d, _) => d[campoX]?.toString() ?? "",
+              yValueMapper: (d, _) => parseValor(d[campoY]),
               color: corPrincipal,
             ),
           ],
@@ -137,8 +162,8 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
           series: [
             PieSeries(
               dataSource: relatorio,
-              xValueMapper: (d, _) => d[campoX],
-              yValueMapper: (d, _) => d[campoY],
+              xValueMapper: (d, _) => d[campoX]?.toString() ?? "",
+              yValueMapper: (d, _) => parseValor(d[campoY]),
             ),
           ],
         );
@@ -146,7 +171,7 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
       case "KPI":
         final total = relatorio.fold<num>(
           0,
-          (sum, item) => sum + (item[campoY] ?? 0),
+          (sum, item) => sum + parseValor(item[campoY]),
         );
 
         return SfRadialGauge(
@@ -159,7 +184,7 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
               annotations: [
                 GaugeAnnotation(
                   widget: Text(
-                    total.toString(),
+                    total.toStringAsFixed(0),
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
@@ -195,38 +220,41 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
             ? const Center(child: CircularProgressIndicator())
             : Column(
                 children: [
-                  Wrap(
-                    spacing: 10,
-                    children: [
-                      _dropdown(tipoGrafico, [
-                        "Linhas",
-                        "Colunas",
-                        "Pizza",
-                        "KPI",
-                      ], (v) => setState(() => tipoGrafico = v!)),
-                      _dropdown(
-                        campoX,
-                        camposTexto,
-                        (v) => setState(() => campoX = v!),
-                      ),
-                      _dropdown(
-                        campoY,
-                        camposNumero,
-                        (v) => setState(() => campoY = v!),
-                      ),
-                      _dropdown(filtroUsuario, usuarios, (v) {
-                        filtroUsuario = v;
-                        carregarRelatorio();
-                      }, hint: "Usuário"),
-                      ElevatedButton(
-                        onPressed: selecionarPeriodo,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: corPrincipal,
-                          foregroundColor: Colors.black,
+                  /// 🔥 EVITA OVERFLOW
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _dropdown(tipoGrafico, [
+                          "Linhas",
+                          "Colunas",
+                          "Pizza",
+                          "KPI",
+                        ], (v) => setState(() => tipoGrafico = v!)),
+                        _dropdown(
+                          campoX,
+                          camposTexto,
+                          (v) => setState(() => campoX = v!),
                         ),
-                        child: const Text("Data"),
-                      ),
-                    ],
+                        _dropdown(
+                          campoY,
+                          camposNumero,
+                          (v) => setState(() => campoY = v!),
+                        ),
+                        _dropdown(filtroUsuario, usuarios, (v) {
+                          filtroUsuario = v;
+                          carregarRelatorio();
+                        }, hint: "Usuário"),
+                        ElevatedButton(
+                          onPressed: selecionarPeriodo,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: corPrincipal,
+                            foregroundColor: Colors.black,
+                          ),
+                          child: const Text("Data"),
+                        ),
+                      ],
+                    ),
                   ),
                   Expanded(child: _buildGrafico()),
                 ],
@@ -243,26 +271,29 @@ Widget _dropdown(
   ValueChanged<String?> onChanged, {
   String? hint,
 }) {
-  return SizedBox(
-    width: 180,
-    child: DropdownButtonFormField<String>(
-      value: value,
-      dropdownColor: Colors.black,
-      iconEnabledColor: corPrincipal,
-      style: const TextStyle(color: corPrincipal),
-      hint: hint != null ? Text(hint) : null,
-      decoration: InputDecoration(
-        enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: corPrincipal),
+  return Padding(
+    padding: const EdgeInsets.all(6),
+    child: SizedBox(
+      width: 180,
+      child: DropdownButtonFormField<String>(
+        value: value,
+        dropdownColor: Colors.black,
+        iconEnabledColor: corPrincipal,
+        style: const TextStyle(color: corPrincipal),
+        hint: hint != null ? Text(hint) : null,
+        decoration: InputDecoration(
+          enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: corPrincipal),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: corPrincipal, width: 2),
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: corPrincipal, width: 2),
-        ),
+        items: items
+            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+            .toList(),
+        onChanged: onChanged,
       ),
-      items: items
-          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-          .toList(),
-      onChanged: onChanged,
     ),
   );
 }

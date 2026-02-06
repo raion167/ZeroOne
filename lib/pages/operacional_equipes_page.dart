@@ -1,12 +1,12 @@
-import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zeroone/pages/detalhes_equipe_page.dart';
-import 'package:zeroone/pages/detalhes_projeto_page.dart';
 
 const Color corPrincipal = Color(0xFFBBFB04);
 const Color fundoEscuro = Color(0xFF0D0D0D);
+
+final supabase = Supabase.instance.client;
 
 class OperacionalEquipesPage extends StatefulWidget {
   final String nomeUsuario;
@@ -32,21 +32,34 @@ class _OperacionalEquipesPageState extends State<OperacionalEquipesPage> {
     carregarEquipes();
   }
 
+  // ================= CARREGAR EQUIPES =================
   Future<void> carregarEquipes() async {
     setState(() => carregando = true);
+
     try {
-      final res = await http.get(
-        Uri.parse("http://localhost:8080/app/listar_equipes.php"),
-      );
-      final data = jsonDecode(res.body);
-      setState(() {
-        equipes =
-            (data["equipes"] as List?)
-                ?.map((e) => Map<String, dynamic>.from(e))
+      final response = await supabase.from('equipes').select('''
+        id,
+        nome,
+        equipe_usuario(
+          usuarios_operacional(
+            id,
+            nome
+          )
+        )
+      ''');
+
+      equipes = List<Map<String, dynamic>>.from(response).map((e) {
+        final usuarios =
+            (e['equipe_usuario'] as List?)
+                ?.map((eu) => eu['usuarios_operacional'])
+                .whereType<Map<String, dynamic>>()
                 .toList() ??
             [];
-        carregando = false;
-      });
+
+        return {'id': e['id'], 'nome': e['nome'], 'usuarios': usuarios};
+      }).toList();
+
+      setState(() => carregando = false);
     } catch (e) {
       setState(() => carregando = false);
       ScaffoldMessenger.of(
@@ -55,9 +68,9 @@ class _OperacionalEquipesPageState extends State<OperacionalEquipesPage> {
     }
   }
 
-  // ================= CADASTRO DE EQUIPE =================
+  // ================= CADASTRAR EQUIPE =================
   void abrirCadastroEquipe() {
-    final TextEditingController nomeCtrl = TextEditingController();
+    final nomeCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -101,9 +114,14 @@ class _OperacionalEquipesPageState extends State<OperacionalEquipesPage> {
                 foregroundColor: Colors.black,
               ),
               onPressed: () async {
-                if (nomeCtrl.text.isEmpty) return;
-                await cadastrarEquipe(nomeCtrl.text);
+                if (nomeCtrl.text.trim().isEmpty) return;
+
+                await supabase.from('equipes').insert({
+                  'nome': nomeCtrl.text.trim(),
+                });
+
                 Navigator.pop(context);
+                carregarEquipes();
               },
               child: const Text("Salvar"),
             ),
@@ -113,30 +131,13 @@ class _OperacionalEquipesPageState extends State<OperacionalEquipesPage> {
     );
   }
 
-  Future<void> cadastrarEquipe(String nome) async {
-    final res = await http.post(
-      Uri.parse("http://localhost:8080/app/cadastrar_equipes.php"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"nome": nome}),
-    );
-    final data = jsonDecode(res.body);
-    if (data["success"] == true) carregarEquipes();
-  }
-
-  // ================= VINCULAR OPERADOR (MANTIDO) =================
-  void abrirVincularOperador(int equipeId, String equipeNome) async {
-    List<Map<String, dynamic>> usuarios = [];
+  // ================= VINCULAR OPERADOR =================
+  void abrirVincularOperador(Object equipeId, String equipeNome) async {
     String? usuarioSelecionado;
 
-    final res = await http.get(
-      Uri.parse("http://localhost:8080/app/listar_usuarios_operacional.php"),
-    );
-    final data = jsonDecode(res.body);
-    usuarios =
-        (data["usuarios"] as List?)
-            ?.map((u) => Map<String, dynamic>.from(u))
-            .toList() ??
-        [];
+    final usuariosResp = await supabase
+        .from('usuarios_operacional')
+        .select('id, nome');
 
     showDialog(
       context: context,
@@ -153,11 +154,11 @@ class _OperacionalEquipesPageState extends State<OperacionalEquipesPage> {
         content: DropdownButtonFormField<String>(
           dropdownColor: fundoEscuro,
           style: const TextStyle(color: corPrincipal),
-          items: usuarios
-              .map(
+          items: usuariosResp
+              .map<DropdownMenuItem<String>>(
                 (u) => DropdownMenuItem(
-                  value: u["id"].toString(),
-                  child: Text(u["nome"]),
+                  value: u['id'].toString(),
+                  child: Text(u['nome']?.toString() ?? ''),
                 ),
               )
               .toList(),
@@ -185,23 +186,20 @@ class _OperacionalEquipesPageState extends State<OperacionalEquipesPage> {
             ),
             onPressed: () async {
               if (usuarioSelecionado == null) return;
-              await vincularUsuario(int.parse(usuarioSelecionado!), equipeId);
+
+              await supabase.from('equipe_usuario').insert({
+                'equipe_id': equipeId.toString(),
+                'usuario_id': usuarioSelecionado,
+              });
+
               Navigator.pop(context);
+              carregarEquipes();
             },
             child: const Text("Vincular"),
           ),
         ],
       ),
     );
-  }
-
-  Future<void> vincularUsuario(int usuarioId, int equipeId) async {
-    await http.post(
-      Uri.parse("http://localhost:8080/app/vincular_usuario_equipe.php"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"usuario_id": usuarioId, "equipe_id": equipeId}),
-    );
-    carregarEquipes();
   }
 
   // ================= UI =================
@@ -244,30 +242,28 @@ class _OperacionalEquipesPageState extends State<OperacionalEquipesPage> {
                   ),
                   child: ListTile(
                     title: Text(
-                      e["nome"],
+                      e['nome'],
                       style: const TextStyle(
                         color: corPrincipal,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     subtitle: Text(
-                      "Operadores: ${(e["usuarios"] ?? []).map((u) => u["nome"]).join(', ')}",
+                      "Operadores: ${(e['usuarios'] as List).map((u) => u['nome']?.toString() ?? '').join(', ')}",
                       style: const TextStyle(color: Colors.white70),
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.link, color: corPrincipal),
-                      onPressed: () => abrirVincularOperador(
-                        int.parse(e["id"].toString()),
-                        e["nome"],
-                      ),
+                      onPressed: () =>
+                          abrirVincularOperador(e['id'], e['nome']),
                     ),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => DetalhesEquipePage(
-                            equipeId: int.parse(e["id"].toString()),
-                            nomeEquipe: e["nome"],
+                            equipeId: e['id'],
+                            nomeEquipe: e['nome'],
                           ),
                         ),
                       );

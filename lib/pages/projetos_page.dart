@@ -1,11 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:zeroone/pages/contas_listagem.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 const Color corPrincipal = Color(0xFFBBFB04);
 const Color fundoPreto = Colors.black;
 const Color cardPreto = Color.fromARGB(255, 20, 20, 20);
+
+final supabase = Supabase.instance.client;
 
 class ProjetosPage extends StatefulWidget {
   const ProjetosPage({super.key});
@@ -20,7 +20,7 @@ class _ProjetosPageState extends State<ProjetosPage>
   List<dynamic> projetos = [];
   List<dynamic> equipes = [];
   List<dynamic> materiais = [];
-  Map<int, int> selecionados = {};
+  Map<String, int> selecionados = {};
   String searchQuery = "";
 
   late TabController _tabController;
@@ -34,41 +34,31 @@ class _ProjetosPageState extends State<ProjetosPage>
 
   Future<void> carregarProjetos() async {
     setState(() => carregando = true);
+
     try {
-      final response = await http.get(
-        Uri.parse("http://localhost:8080/app/listar_projetos.php"),
-      );
-      final data = jsonDecode(response.body);
-      if (data["success"] == true) {
-        setState(() {
-          projetos = data["projetos"];
-          carregando = false;
-        });
-      } else {
-        throw Exception(data["message"]);
-      }
+      final response = await supabase
+          .from('projetos')
+          .select()
+          .order('id', ascending: false);
+
+      setState(() {
+        projetos = response;
+        carregando = false;
+      });
     } catch (e) {
       setState(() => carregando = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Erro ao carregar projetos: $e")));
+      ).showSnackBar(SnackBar(content: Text("Erro: $e")));
     }
   }
 
   Future<void> carregarEquipes() async {
-    final response = await http.get(
-      Uri.parse("http://localhost:8080/app/listar_equipes.php"),
-    );
-    final data = jsonDecode(response.body);
-    equipes = data["equipes"] ?? [];
+    equipes = await supabase.from('equipes').select('id, nome');
   }
 
   Future<void> carregarMateriais() async {
-    final response = await http.get(
-      Uri.parse("http://localhost:8080/app/listar_estoque.php"),
-    );
-    final data = jsonDecode(response.body);
-    materiais = data["itens"] ?? [];
+    materiais = await supabase.from('estoque').select('id, nome, quantidade');
   }
 
   List<dynamic> filtrarProjetos(String status) {
@@ -89,8 +79,6 @@ class _ProjetosPageState extends State<ProjetosPage>
     }).toList();
   }
 
-  // ================== CADASTRO DE PROJETO (INALTERADO) ==================
-
   void abrirCadastroProjeto() async {
     await carregarEquipes();
     await carregarMateriais();
@@ -100,9 +88,10 @@ class _ProjetosPageState extends State<ProjetosPage>
     final clienteNomeCtrl = TextEditingController();
     final clienteEmailCtrl = TextEditingController();
     final clienteTelefoneCtrl = TextEditingController();
-    String? equipeSelecionada;
 
+    String? equipeSelecionada;
     selecionados.clear();
+
     int etapa = 1;
 
     showDialog(
@@ -168,10 +157,8 @@ class _ProjetosPageState extends State<ProjetosPage>
                             )
                           : Column(
                               children: materiais.map((m) {
-                                final id = int.parse(m["id"].toString());
-                                final disp = int.parse(
-                                  m["quantidade"].toString(),
-                                );
+                                final id = m["id"].toString();
+                                final disp = m["quantidade"] ?? 0;
                                 final sel = selecionados[id] ?? 0;
 
                                 return Card(
@@ -229,7 +216,6 @@ class _ProjetosPageState extends State<ProjetosPage>
                             ),
                     ),
                   ),
-                  const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -256,7 +242,7 @@ class _ProjetosPageState extends State<ProjetosPage>
                               clienteNomeCtrl.text,
                               clienteEmailCtrl.text,
                               clienteTelefoneCtrl.text,
-                              int.parse(equipeSelecionada!),
+                              equipeSelecionada!,
                             );
                             Navigator.pop(context);
                           }
@@ -280,45 +266,42 @@ class _ProjetosPageState extends State<ProjetosPage>
     String clienteNome,
     String clienteEmail,
     String clienteTelefone,
-    int equipeId,
+    String equipeId,
   ) async {
-    final response = await http.post(
-      Uri.parse("http://localhost:8080/app/cadastrar_projeto.php"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "titulo": titulo,
-        "descricao": descricao,
-        "cliente_nome": clienteNome,
-        "cliente_email": clienteEmail,
-        "cliente_telefone": clienteTelefone,
-        "equipe_id": equipeId,
-      }),
-    );
+    final projeto = await supabase
+        .from('projetos')
+        .insert({
+          "titulo": titulo,
+          "descricao": descricao,
+          "cliente_nome": clienteNome,
+          "cliente_email": clienteEmail,
+          "cliente_telefone": clienteTelefone,
+          "equipe_id": equipeId,
+          "status": "Em Andamento",
+        })
+        .select()
+        .single();
 
-    final data = jsonDecode(response.body);
-    if (data["success"] == true) {
-      final projetoId = data["projeto_id"];
-      if (selecionados.isNotEmpty) {
-        await adicionarMateriaisAoProjeto(projetoId);
-      }
-      carregarProjetos();
+    final projetoId = projeto['id'];
+
+    if (selecionados.isNotEmpty) {
+      await adicionarMateriaisAoProjeto(projetoId);
     }
+
+    carregarProjetos();
   }
 
-  Future<void> adicionarMateriaisAoProjeto(int projetoId) async {
-    await http.post(
-      Uri.parse("http://localhost:8080/app/adicionar_materiais_projeto.php"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
+  Future<void> adicionarMateriaisAoProjeto(String projetoId) async {
+    final dados = selecionados.entries.map((e) {
+      return {
         "projeto_id": projetoId,
-        "materiais": selecionados.entries
-            .map((e) => {"estoque_id": e.key, "quantidade": e.value})
-            .toList(),
-      }),
-    );
-  }
+        "estoque_id": e.key,
+        "quantidade": e.value,
+      };
+    }).toList();
 
-  // ================== UI ==================
+    await supabase.from('projeto_materiais').insert(dados);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -343,10 +326,7 @@ class _ProjetosPageState extends State<ProjetosPage>
         foregroundColor: Colors.black,
         onPressed: abrirCadastroProjeto,
         icon: const Icon(Icons.add),
-        label: const Text(
-          "Novo Projeto",
-          style: TextStyle(fontWeight: FontWeight.w100),
-        ),
+        label: const Text("Novo Projeto"),
       ),
       body: carregando
           ? const Center(child: CircularProgressIndicator(color: corPrincipal))
@@ -359,6 +339,7 @@ class _ProjetosPageState extends State<ProjetosPage>
 
   Widget _lista(String status) {
     final lista = filtrarProjetos(status);
+
     if (lista.isEmpty) {
       return const Center(
         child: Text("Nenhum projeto", style: TextStyle(color: Colors.white70)),
@@ -370,6 +351,7 @@ class _ProjetosPageState extends State<ProjetosPage>
       itemCount: lista.length,
       itemBuilder: (_, i) {
         final p = lista[i];
+
         return Card(
           color: cardPreto,
           child: ListTile(

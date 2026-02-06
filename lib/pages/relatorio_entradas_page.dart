@@ -108,7 +108,11 @@ class _RelatorioEntradasPageState extends State<RelatorioEntradasPage> {
               color: corPrincipal,
               markerSettings: const MarkerSettings(isVisible: true),
               xValueMapper: (d, _) => d[campoX].toString(),
-              yValueMapper: (d, _) => num.tryParse(d[campoY].toString()) ?? 0,
+              yValueMapper: (d, _) {
+                final valor = d[campoY];
+                if (valor is num) return valor;
+                return num.tryParse(valor?.toString() ?? '') ?? 0;
+              },
             ),
           ],
         );
@@ -123,7 +127,11 @@ class _RelatorioEntradasPageState extends State<RelatorioEntradasPage> {
             PieSeries<dynamic, String>(
               dataSource: relatorio,
               xValueMapper: (d, _) => d[campoX].toString(),
-              yValueMapper: (d, _) => num.tryParse(d[campoY].toString()) ?? 0,
+              yValueMapper: (d, _) {
+                final valor = d[campoY];
+                if (valor is num) return valor;
+                return num.tryParse(valor?.toString() ?? '') ?? 0;
+              },
               dataLabelSettings: const DataLabelSettings(
                 isVisible: true,
                 textStyle: TextStyle(color: corPrincipal),
@@ -181,7 +189,11 @@ class _RelatorioEntradasPageState extends State<RelatorioEntradasPage> {
                 textStyle: TextStyle(color: corPrincipal),
               ),
               xValueMapper: (d, _) => d[campoX].toString(),
-              yValueMapper: (d, _) => num.tryParse(d[campoY].toString()) ?? 0,
+              yValueMapper: (d, _) {
+                final valor = d[campoY];
+                if (valor is num) return valor;
+                return num.tryParse(valor?.toString() ?? '') ?? 0;
+              },
             ),
           ],
         );

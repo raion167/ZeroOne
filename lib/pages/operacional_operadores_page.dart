@@ -1,9 +1,10 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 const Color corPrincipal = Color(0xFFBBFB04);
 const Color fundoEscuro = Color(0xFF0D0D0D);
+
+final supabase = Supabase.instance.client;
 
 class OperacionalOperadoresPage extends StatefulWidget {
   const OperacionalOperadoresPage({super.key});
@@ -14,7 +15,7 @@ class OperacionalOperadoresPage extends StatefulWidget {
 }
 
 class _OperacionalOperadoresPageState extends State<OperacionalOperadoresPage> {
-  List<dynamic> operadores = [];
+  List<Map<String, dynamic>> operadores = [];
   bool carregando = true;
 
   @override
@@ -24,23 +25,23 @@ class _OperacionalOperadoresPageState extends State<OperacionalOperadoresPage> {
   }
 
   Future<void> carregarOperadores() async {
+    setState(() => carregando = true);
+
     try {
-      final response = await http.get(
-        Uri.parse("http://localhost:8080/app/listar_usuarios_operacional.php"),
-      );
+      final response = await supabase
+          .from('usuarios_operacional')
+          .select('id, nome, email')
+          .order('nome');
 
-      final data = jsonDecode(response.body);
+      operadores = List<Map<String, dynamic>>.from(response);
 
-      if (data["success"] == true) {
-        setState(() {
-          operadores = List<dynamic>.from(data["usuarios"] ?? []);
-          carregando = false;
-        });
-      } else {
-        setState(() => carregando = false);
-      }
-    } catch (_) {
       setState(() => carregando = false);
+    } catch (e) {
+      setState(() => carregando = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erro ao carregar operadores: $e")),
+      );
     }
   }
 
@@ -85,14 +86,14 @@ class _OperacionalOperadoresPageState extends State<OperacionalOperadoresPage> {
                   child: ListTile(
                     leading: const Icon(Icons.person, color: corPrincipal),
                     title: Text(
-                      op["nome"],
+                      op["nome"] ?? "-",
                       style: const TextStyle(
                         color: corPrincipal,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     subtitle: Text(
-                      op["email"],
+                      op["email"] ?? "-",
                       style: const TextStyle(color: Colors.white70),
                     ),
                   ),
@@ -130,24 +131,18 @@ class _CadastrarOperadorPageState extends State<CadastrarOperadorPage> {
 
   Future<void> cadastrarOperador() async {
     try {
-      final response = await http.post(
-        Uri.parse(
-          "http://localhost:8080/app/cadastrar_usuario_operacional.php",
-        ),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          'nome': nomeController.text,
-          'email': emailController.text,
-          'senha': senhaController.text,
-        }),
-      );
+      await supabase.from('usuarios_operacional').insert({
+        'nome': nomeController.text,
+        'email': emailController.text,
+        'senha': senhaController.text,
+      });
 
-      final data = jsonDecode(response.body);
-
-      if (data["success"] == true) {
-        Navigator.pop(context);
-      }
-    } catch (_) {}
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Erro ao cadastrar operador: $e")));
+    }
   }
 
   InputDecoration _input(String label) {
@@ -179,15 +174,21 @@ class _CadastrarOperadorPageState extends State<CadastrarOperadorPage> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            TextField(controller: nomeController, decoration: _input("Nome")),
+            TextField(
+              controller: nomeController,
+              style: const TextStyle(color: corPrincipal),
+              decoration: _input("Nome"),
+            ),
             const SizedBox(height: 14),
             TextField(
               controller: emailController,
+              style: const TextStyle(color: corPrincipal),
               decoration: _input("E-mail"),
             ),
             const SizedBox(height: 14),
             TextField(
               controller: senhaController,
+              style: const TextStyle(color: corPrincipal),
               obscureText: true,
               decoration: _input("Senha"),
             ),

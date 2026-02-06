@@ -1,14 +1,15 @@
-import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'finalizar_projeto_page.dart';
 
 const Color corPrincipal = Color(0xFFBBFB04);
 const Color fundoEscuro = Color(0xFF0D0D0D);
 
+final supabase = Supabase.instance.client;
+
 class DetalhesEquipePage extends StatefulWidget {
-  final int equipeId;
+  final String equipeId;
   final String nomeEquipe;
 
   const DetalhesEquipePage({
@@ -26,9 +27,9 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
   late TabController _tabController;
   bool carregando = true;
 
-  List<dynamic> operadores = [];
-  List<dynamic> projetos = [];
-  Map<String, dynamic> status = {};
+  List<Map<String, dynamic>> operadores = [];
+  List<Map<String, dynamic>> projetos = [];
+  Map<String, int> status = {};
 
   @override
   void initState() {
@@ -47,46 +48,68 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
     setState(() => carregando = false);
   }
 
+  // ================= OPERADORES =================
   Future<void> carregarOperadores() async {
-    final response = await http.get(
-      Uri.parse(
-        "http://localhost:8080/app/listar_operadores_equipe.php?equipe_id=${widget.equipeId}",
-      ),
-    );
-    final data = jsonDecode(response.body);
-    if (data["success"]) {
-      operadores = List<dynamic>.from(data["operadores"] ?? []);
-    }
+    final resp = await supabase
+        .from('equipe_usuario')
+        .select('''
+      usuario_id,
+      usuarios_operacional(id,nome,email)
+    ''')
+        .eq('equipe_id', widget.equipeId);
+
+    operadores = List<Map<String, dynamic>>.from(resp)
+        .map((e) => e['usuarios_operacional'])
+        .whereType<Map<String, dynamic>>()
+        .toList();
   }
 
+  Future<bool> desvincularOperador(String usuarioId) async {
+    await supabase
+        .from('equipe_usuario')
+        .delete()
+        .eq('usuario_id', usuarioId)
+        .eq('equipe_id', widget.equipeId);
+    return true;
+  }
+
+  // ================= PROJETOS =================
   Future<void> carregarProjetos() async {
-    final response = await http.get(
-      Uri.parse(
-        "http://localhost:8080/app/listar_projetos_equipe.php?equipe_id=${widget.equipeId}",
-      ),
-    );
-    final data = jsonDecode(response.body);
-    if (data["success"]) {
-      projetos = List<dynamic>.from(data["projetos"] ?? []);
-    }
+    final resp = await supabase
+        .from('projetos')
+        .select()
+        .eq('equipe_id', widget.equipeId);
+
+    projetos = List<Map<String, dynamic>>.from(resp);
   }
 
+  // ================= STATUS =================
   Future<void> carregarStatus() async {
-    final response = await http.get(
-      Uri.parse(
-        "http://localhost:8080/app/listar_status_equipe.php?equipe_id=${widget.equipeId}",
-      ),
-    );
-    final data = jsonDecode(response.body);
-    if (data["success"]) {
-      status = {
-        "total": data["total"],
-        "finalizados": data["finalizados"],
-        "andamento": data["andamento"],
-      };
-    }
+    final totalResp = await supabase
+        .from('projetos')
+        .select('id')
+        .eq('equipe_id', widget.equipeId);
+
+    final finalizadosResp = await supabase
+        .from('projetos')
+        .select('id')
+        .eq('equipe_id', widget.equipeId)
+        .eq('status', 'finalizado');
+
+    final andamentoResp = await supabase
+        .from('projetos')
+        .select('id')
+        .eq('equipe_id', widget.equipeId)
+        .eq('status', 'andamento');
+
+    status = {
+      'total': totalResp.length,
+      'finalizados': finalizadosResp.length,
+      'andamento': andamentoResp.length,
+    };
   }
 
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,15 +117,16 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: corPrincipal,
+        title: Text(widget.nomeEquipe),
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: corPrincipal,
           labelColor: corPrincipal,
           unselectedLabelColor: Colors.white54,
           tabs: const [
-            Tab(icon: Icon(Icons.people), text: "Operadores"),
-            Tab(icon: Icon(Icons.work), text: "Projetos"),
-            Tab(icon: Icon(Icons.analytics), text: "Status"),
+            Tab(icon: Icon(Icons.people), text: 'Operadores'),
+            Tab(icon: Icon(Icons.work), text: 'Projetos'),
+            Tab(icon: Icon(Icons.analytics), text: 'Status'),
           ],
         ),
       ),
@@ -115,12 +139,11 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
     );
   }
 
-  // ================= ABA OPERADORES =================
   Widget _buildOperadores() {
     if (operadores.isEmpty) {
       return const Center(
         child: Text(
-          "Nenhum operador vinculado",
+          'Nenhum operador vinculado',
           style: TextStyle(color: Colors.white70),
         ),
       );
@@ -145,14 +168,14 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
           child: ListTile(
             leading: const Icon(Icons.person, color: corPrincipal),
             title: Text(
-              op["nome"] ?? "",
+              op['nome'] ?? '',
               style: const TextStyle(
                 color: corPrincipal,
                 fontWeight: FontWeight.bold,
               ),
             ),
             subtitle: Text(
-              op["email"] ?? "",
+              op['email'] ?? '',
               style: const TextStyle(color: Colors.white70),
             ),
             trailing: IconButton(
@@ -161,10 +184,8 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
                 color: Colors.redAccent,
               ),
               onPressed: () async {
-                final ok = await desvincularOperador(op["id"]);
-                if (ok) {
-                  setState(() => operadores.removeAt(i));
-                }
+                final ok = await desvincularOperador(op['id'].toString());
+                if (ok) setState(() => operadores.removeAt(i));
               },
             ),
           ),
@@ -173,22 +194,11 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
     );
   }
 
-  Future<bool> desvincularOperador(int usuarioId) async {
-    final res = await http.post(
-      Uri.parse("http://localhost:8080/app/desvincular_usuario_equipe.php"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"usuario_id": usuarioId, "equipe_id": widget.equipeId}),
-    );
-    final data = jsonDecode(res.body);
-    return data["success"] == true;
-  }
-
-  // ================= ABA PROJETOS =================
   Widget _buildProjetos() {
     if (projetos.isEmpty) {
       return const Center(
         child: Text(
-          "Nenhum projeto cadastrado",
+          'Nenhum projeto cadastrado',
           style: TextStyle(color: Colors.white70),
         ),
       );
@@ -213,14 +223,14 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
           child: ListTile(
             leading: const Icon(Icons.assignment, color: corPrincipal),
             title: Text(
-              p["titulo"] ?? "Projeto sem título",
+              p['titulo'] ?? 'Projeto sem título',
               style: const TextStyle(
                 color: corPrincipal,
                 fontWeight: FontWeight.bold,
               ),
             ),
             subtitle: Text(
-              p["descricao"] ?? "",
+              p['descricao'] ?? '',
               style: const TextStyle(color: Colors.white70),
             ),
             trailing: const Icon(
@@ -233,10 +243,11 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
                 context,
                 MaterialPageRoute(
                   builder: (_) => FinalizarProjetoPage(
-                    projetoId: int.parse(p["id"].toString()),
+                    projetoId: int.parse(p['id'].toString()),
                   ),
                 ),
               );
+
               if (finalizado == true) {
                 await carregarProjetos();
                 await carregarStatus();
@@ -249,7 +260,6 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
     );
   }
 
-  // ================= ABA STATUS =================
   Widget _buildStatus() {
     if (status.isEmpty) {
       return const Center(child: CircularProgressIndicator());
@@ -259,11 +269,11 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          _statusCard("Total OS", status["total"], Colors.blue),
+          _statusCard('Total OS', status['total'] ?? 0, Colors.blue),
           const SizedBox(width: 12),
-          _statusCard("Finalizadas", status["finalizados"], Colors.green),
+          _statusCard('Finalizadas', status['finalizados'] ?? 0, Colors.green),
           const SizedBox(width: 12),
-          _statusCard("Em andamento", status["andamento"], Colors.orange),
+          _statusCard('Em andamento', status['andamento'] ?? 0, Colors.orange),
         ],
       ),
     );

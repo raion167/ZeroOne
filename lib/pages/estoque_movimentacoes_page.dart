@@ -105,7 +105,7 @@ class EstoqueMovimentacoesPage extends StatelessWidget {
                 );
               },
             ),
-            _EstoqueCard(
+            /*_EstoqueCard(
               icon: Icons.bar_chart,
               label: "Relatórios",
               color: corPrincipal,
@@ -120,7 +120,7 @@ class EstoqueMovimentacoesPage extends StatelessWidget {
                   ),
                 );
               },
-            ),
+            ),*/
           ],
         ),
       ),

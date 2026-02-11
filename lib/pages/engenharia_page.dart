@@ -1,13 +1,13 @@
-import 'dart:convert';
 import 'dart:io';
-import 'dart:ui';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:zeroone/pages/financeiro_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+const Color corPrincipal = Color(0xFFBBFB04);
+final supabase = Supabase.instance.client;
 
 class EngenhariaPage extends StatefulWidget {
   const EngenhariaPage({super.key});
@@ -27,64 +27,67 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
     carregarProjetos();
   }
 
+  // ================= SUPABASE =================
+
   Future<void> carregarProjetos() async {
     setState(() => carregando = true);
-    try {
-      final res = await http.get(
-        Uri.parse("http://localhost:8080/app/listar_projetos_engenharia.php"),
-      );
 
-      final data = jsonDecode(res.body);
-      if (data["success"] == true) {
-        projetos = (data["projetos"] as List)
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
-      } else {
-        projetos = [];
-      }
-    } catch (_) {
+    try {
+      final response = await supabase
+          .from('projetos')
+          .select('*, clientes(nome)')
+          .order('id', ascending: false);
+
+      projetos = List<Map<String, dynamic>>.from(response).map((p) {
+        p['cliente_nome'] = p['clientes']?['nome'];
+
+        // manda automaticamente pra primeira coluna
+        if (p['status'] == null || p['status'].toString().trim().isEmpty) {
+          p['status'] = 'Comprar';
+        }
+
+        return p;
+      }).toList();
+    } catch (e) {
       projetos = [];
     } finally {
       setState(() => carregando = false);
     }
   }
 
-  List<Map<String, dynamic>> filtrar(String status) {
-    return projetos.where((p) {
-      final s = (p["status"] ?? "").toString().trim().toLowerCase();
-      return s == status.toLowerCase();
-    }).toList();
-  }
-
   Future<void> moverProjeto(
     Map<String, dynamic> projeto,
     String novoStatus,
   ) async {
-    setState(() => projeto["status"] = novoStatus);
+    setState(() => projeto['status'] = novoStatus);
     setState(() => salvando = true);
 
     try {
-      final res = await http.post(
-        Uri.parse("http://localhost:8080/app/atualizar_status_projeto.php"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"id": projeto["id"], "status": novoStatus}),
-      );
-
-      final data = jsonDecode(res.body);
-      if (data["success"] != true) throw Exception();
+      await supabase
+          .from('projetos')
+          .update({'status': novoStatus})
+          .eq('id', projeto['id'].toString());
     } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Erro ao atualizar status.")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Erro ao atualizar status')));
       await carregarProjetos();
     } finally {
       setState(() => salvando = false);
     }
   }
 
-  // =====================================================
-  // 🔹 COLUNA KANBAN RESPONSIVA
-  // =====================================================
+  // ================= FILTRO =================
+
+  List<Map<String, dynamic>> filtrar(String status) {
+    return projetos.where((p) {
+      final s = (p['status'] ?? '').toString().toLowerCase();
+      return s == status.toLowerCase();
+    }).toList();
+  }
+
+  // ================= KANBAN =================
+
   Widget _buildKanbanColumn(String status, Color cor) {
     final lista = filtrar(status);
 
@@ -101,6 +104,7 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
               color: candidate.isNotEmpty ? Colors.greenAccent : cor,
               width: 2,
             ),
+            boxShadow: [BoxShadow(color: cor.withOpacity(0.4), blurRadius: 12)],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,9 +133,6 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
     );
   }
 
-  // =====================================================
-  // 🔹 CARD ARRASTÁVEL
-  // =====================================================
   Widget _buildKanbanCard(Map<String, dynamic> projeto, Color cor) {
     return LongPressDraggable<Map<String, dynamic>>(
       data: projeto,
@@ -145,305 +146,185 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
             border: Border.all(color: cor, width: 2),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Text(projeto["titulo"] ?? "", style: TextStyle(color: cor)),
+          child: Text(projeto['nome'] ?? '', style: TextStyle(color: cor)),
         ),
       ),
       childWhenDragging: Opacity(
         opacity: 0.3,
-        child: _cardClickable(projeto, cor),
+        child: _cardVisual(projeto, cor),
       ),
-      child: _cardClickable(projeto, cor),
-    );
-  }
-
-  Widget _cardClickable(Map<String, dynamic> projeto, Color cor) {
-    return InkWell(
-      onTap: () => _abrirDetalhesProjeto(projeto),
       child: _cardVisual(projeto, cor),
     );
   }
 
   Widget _cardVisual(Map<String, dynamic> projeto, Color cor) {
-    return Card(
-      color: Colors.black,
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.assignment, color: cor),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    projeto["titulo"] ?? "",
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: cor,
+    return InkWell(
+      onTap: () => _abrirDetalhesProjeto(projeto),
+      child: Card(
+        color: Colors.black,
+        elevation: 3,
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.assignment, color: cor),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      projeto['nome'] ?? '',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: cor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              projeto["descricao"] ?? "",
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.white70),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              projeto["cliente_nome"] ?? "",
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                projeto['descricao'] ?? '',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                projeto['cliente_nome'] ?? '',
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  // ================= STORAGE =================
+
   Future<void> enviarArquivosProjeto({
-    required int projetoId,
+    required String projetoId,
     required List<XFile> imagens,
     required List<PlatformFile> documentos,
   }) async {
-    final uri = Uri.parse("http://localhost:8080/app/upload_anexo.php");
-
-    final request = http.MultipartRequest("POST", uri);
-    request.fields["projeto_id"] = projetoId.toString();
-
-    // IMAGENS
     for (final img in imagens) {
-      if (kIsWeb) {
-        final bytes = await img.readAsBytes();
-        request.files.add(
-          http.MultipartFile.fromBytes("imagens[]", bytes, filename: img.name),
-        );
-      } else {
-        request.files.add(
-          await http.MultipartFile.fromPath("imagens[]", img.path),
-        );
-      }
+      final bytes = await img.readAsBytes();
+
+      final nome =
+          'projeto_$projetoId/${DateTime.now().millisecondsSinceEpoch}_${img.name}';
+
+      await supabase.storage.from('projetos').uploadBinary(nome, bytes);
     }
 
-    // DOCUMENTOS
     for (final doc in documentos) {
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          "documentos[]",
-          doc.bytes!,
-          filename: doc.name,
-        ),
-      );
-    }
+      final nome =
+          'projeto_$projetoId/${DateTime.now().millisecondsSinceEpoch}_${doc.name}';
 
-    final response = await request.send();
-
-    if (response.statusCode != 200) {
-      throw Exception("Erro ao salvar arquivos");
+      await supabase.storage.from('projetos').uploadBinary(nome, doc.bytes!);
     }
   }
 
-  // =====================================================
-  // 🔹 DETALHES DO PROJETO (INALTERADO)
-  // =====================================================
   Future<List<Map<String, dynamic>>> carregarArquivosProjeto(
-    int projetoId,
+    String projetoId,
   ) async {
-    try {
-      final res = await http.get(
-        Uri.parse(
-          "http://localhost:8080/app/listar_arquivos_projeto.php?projeto_id=$projetoId",
-        ),
-      );
-      final data = jsonDecode(res.body);
-      if (data["success"] == true) {
-        return (data["arquivos"] as List)
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
-      }
-    } catch (_) {}
-    return [];
+    final arquivos = await supabase.storage
+        .from('projetos')
+        .list(path: 'projeto_$projetoId');
+
+    return arquivos
+        .map(
+          (f) => {
+            'nome': f.name,
+            'url': supabase.storage
+                .from('projetos')
+                .getPublicUrl('projeto_$projetoId/${f.name}'),
+          },
+        )
+        .toList();
   }
 
   void _abrirDetalhesProjeto(Map<String, dynamic> projeto) async {
-    final ImagePicker picker = ImagePicker();
-    List<XFile> novasImagens = [];
-    List<PlatformFile> novosDocs = [];
+    final projetoId = projeto['id'].toString();
 
     List<Map<String, dynamic>> arquivosExistentes =
-        await carregarArquivosProjeto(int.parse(projeto["id"].toString()));
+        await carregarArquivosProjeto(projetoId);
 
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              backgroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: corPrincipal, width: 2),
-              ),
-              titlePadding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-              title: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      projeto["titulo"] ?? "Detalhes do Projeto",
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: corPrincipal),
-                    ),
+      builder: (_) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          child: Container(
+            width: 500,
+            height: 400,
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Text(
+                  projeto['nome'] ?? '',
+                  style: const TextStyle(
+                    color: corPrincipal,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: corPrincipal),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      height: 300,
-                      child: GridView.count(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 6,
-                        mainAxisSpacing: 6,
-                        children: [
-                          for (final f in arquivosExistentes)
-                            _miniaturaArquivo(f),
+                ),
 
-                          for (final img in novasImagens)
-                            kIsWeb
-                                ? Image.network(img.path, fit: BoxFit.cover)
-                                : Image.file(File(img.path), fit: BoxFit.cover),
-                          for (final doc in novosDocs)
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.black,
-                                border: Border.all(color: Colors.white24),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              padding: const EdgeInsets.all(6),
-                              child: Center(
-                                child: Text(
-                                  doc.name,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.white,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
+                const SizedBox(height: 15),
+
+                Expanded(
+                  child: GridView.builder(
+                    itemCount: arquivosExistentes.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                        ),
+                    itemBuilder: (_, i) {
+                      final f = arquivosExistentes[i];
+
+                      return InkWell(
+                        onTap: () => launchUrl(Uri.parse(f['url'])),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.white24),
+                          ),
+                          child: Center(
+                            child: Text(
+                              f['nome'],
+                              style: const TextStyle(color: Colors.white),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: corPrincipal,
-                        foregroundColor: Colors.black,
-                      ),
-                      icon: const Icon(Icons.image),
-                      label: const Text("Adicionar Imagens"),
-                      onPressed: () async {
-                        final picked = await picker.pickMultiImage(
-                          imageQuality: 70,
-                        );
-                        if (picked != null) {
-                          setStateDialog(() {
-                            novasImagens.addAll(picked);
-                          });
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: corPrincipal,
-                        foregroundColor: Colors.black,
-                      ),
-                      icon: const Icon(Icons.upload_file),
-                      label: const Text("Adicionar Documentos"),
-                      onPressed: () async {
-                        final result = await FilePicker.platform.pickFiles(
-                          allowMultiple: true,
-                        );
-                        if (result != null) {
-                          setStateDialog(() {
-                            novosDocs.addAll(result.files);
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFBBFB04),
-                    foregroundColor: Colors.black,
-                    elevation: 0,
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  icon: const Icon(Icons.save),
-                  label: const Text("Salvar"),
-                  onPressed: () async {
-                    try {
-                      await enviarArquivosProjeto(
-                        projetoId: int.parse(projeto["id"].toString()),
-                        imagens: novasImagens,
-                        documentos: novosDocs,
-                      );
-
-                      Navigator.pop(context);
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Arquivos salvos com sucesso"),
-                        ),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Erro ao salvar arquivos"),
-                        ),
-                      );
-                    }
-                  },
                 ),
 
-                TextButton(
+                const SizedBox(height: 10),
+
+                ElevatedButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    "Cancelar",
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  child: const Text('Fechar'),
                 ),
               ],
-            );
-          },
+            ),
+          ),
         );
       },
     );
   }
 
-  // =====================================================
-  // 🔹 BUILD PRINCIPAL RESPONSIVO
-  // =====================================================
+  // ================= UI =================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -453,70 +334,24 @@ class _EngenhariaPageState extends State<EngenhariaPage> {
       ),
       body: carregando
           ? const Center(child: CircularProgressIndicator())
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                return Row(
-                  children: [
-                    Expanded(
-                      child: _buildKanbanColumn("A Fazer", Colors.orangeAccent),
-                    ),
-                    Expanded(
-                      child: _buildKanbanColumn(
-                        "Em Andamento",
-                        Colors.blueAccent,
-                      ),
-                    ),
-                    Expanded(
-                      child: _buildKanbanColumn("Concluído", corPrincipal),
-                    ),
-                  ],
-                );
-              },
+          : SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _coluna('Comprar', Colors.orangeAccent),
+                  _coluna('Comprados', Colors.blueAccent),
+                  _coluna('Montagem', Colors.deepPurpleAccent),
+                  _coluna('Protocolado', Colors.tealAccent),
+                  _coluna('Homologação', Colors.amberAccent),
+                  _coluna('Vistoria e Ligação', Colors.cyanAccent),
+                  _coluna('Concluídos', corPrincipal),
+                ],
+              ),
             ),
     );
   }
 
-  Widget _miniaturaArquivo(Map<String, dynamic> f) {
-    String caminho = f["caminho"].toString();
-
-    if (caminho.startsWith("/")) {
-      caminho = caminho.substring(1);
-    }
-
-    final url = "http://localhost:8080/app/$caminho";
-
-    if (f["tipo_arquivo"] == "imagem") {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          url,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
-        ),
-      );
-    }
-
-    return GestureDetector(
-      onTap: () => launchUrl(Uri.parse(url)),
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.white24),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        padding: const EdgeInsets.all(6),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.insert_drive_file, color: Colors.white),
-            Text(
-              f["nome_arquivo"] ?? "",
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11, color: Colors.white),
-            ),
-          ],
-        ),
-      ),
-    );
+  Widget _coluna(String status, Color cor) {
+    return SizedBox(width: 320, child: _buildKanbanColumn(status, cor));
   }
 }

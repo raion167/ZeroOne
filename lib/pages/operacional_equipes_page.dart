@@ -38,15 +38,15 @@ class _OperacionalEquipesPageState extends State<OperacionalEquipesPage> {
 
     try {
       final response = await supabase.from('equipes').select('''
-        id,
-        nome,
-        equipe_usuario(
-          usuarios_operacional(
-            id,
-            nome
-          )
+      id,
+      nome,
+      equipe_usuario!fk_equipe_usuario_equipe(
+        usuarios_operacional(
+          id,
+          nome
         )
-      ''');
+      )
+    ''');
 
       equipes = List<Map<String, dynamic>>.from(response).map((e) {
         final usuarios =
@@ -188,7 +188,7 @@ class _OperacionalEquipesPageState extends State<OperacionalEquipesPage> {
               if (usuarioSelecionado == null) return;
 
               await supabase.from('equipe_usuario').insert({
-                'equipe_id': equipeId.toString(),
+                'equipe_id': equipeId,
                 'usuario_id': usuarioSelecionado,
               });
 

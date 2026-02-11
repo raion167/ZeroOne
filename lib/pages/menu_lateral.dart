@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:zeroone/pages/clientes_page.dart';
 import 'package:zeroone/pages/configuracoes_page.dart';
 import 'package:zeroone/pages/controle_estoque_page.dart';
 import 'package:zeroone/pages/engenharia_page.dart';
@@ -63,6 +64,9 @@ class _BaseScaffoldState extends State<BaseScaffold> {
                     emailUsuario: widget.emailUsuario,
                   ),
                 );
+              }),
+              _menuItem(Icons.home, "Clientes", () {
+                _navigate(() => ClientesPage());
               }),
 
               _menuItem(Icons.wallet, "Financeiro", () {

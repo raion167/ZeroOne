@@ -17,9 +17,12 @@ class ProjetosPage extends StatefulWidget {
 class _ProjetosPageState extends State<ProjetosPage>
     with SingleTickerProviderStateMixin {
   bool carregando = true;
-  List<dynamic> projetos = [];
-  List<dynamic> equipes = [];
-  List<dynamic> materiais = [];
+
+  List projetos = [];
+  List equipes = [];
+  List materiais = [];
+  List clientes = [];
+
   Map<String, int> selecionados = {};
   String searchQuery = "";
 
@@ -32,25 +35,23 @@ class _ProjetosPageState extends State<ProjetosPage>
     carregarProjetos();
   }
 
+  // ================= CARREGAMENTOS =================
+
   Future<void> carregarProjetos() async {
     setState(() => carregando = true);
 
     try {
-      final response = await supabase
+      projetos = await supabase
           .from('projetos')
-          .select()
+          .select('*, clientes(nome)')
           .order('id', ascending: false);
-
-      setState(() {
-        projetos = response;
-        carregando = false;
-      });
     } catch (e) {
-      setState(() => carregando = false);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Erro: $e")));
     }
+
+    setState(() => carregando = false);
   }
 
   Future<void> carregarEquipes() async {
@@ -61,9 +62,16 @@ class _ProjetosPageState extends State<ProjetosPage>
     materiais = await supabase.from('estoque').select('id, nome, quantidade');
   }
 
-  List<dynamic> filtrarProjetos(String status) {
+  Future<void> carregarClientes() async {
+    clientes = await supabase.from('clientes').select('id, nome');
+  }
+
+  // ================= FILTRO =================
+
+  List filtrarProjetos(String status) {
     final lista = projetos.where((p) {
-      final st = (p["status"] ?? "").toString().toLowerCase();
+      final st = (p["status"] ?? "").toLowerCase();
+
       if (status == "Em Andamento") {
         return st == "em andamento" || st == "a fazer";
       }
@@ -73,25 +81,26 @@ class _ProjetosPageState extends State<ProjetosPage>
     if (searchQuery.isEmpty) return lista;
 
     return lista.where((p) {
-      return (p["cliente_nome"] ?? "").toLowerCase().contains(
+      return (p["clientes"]?["nome"] ?? "").toLowerCase().contains(
         searchQuery.toLowerCase(),
       );
     }).toList();
   }
 
+  // ================= CADASTRO =================
+
   void abrirCadastroProjeto() async {
     await carregarEquipes();
     await carregarMateriais();
+    await carregarClientes();
 
     final tituloCtrl = TextEditingController();
     final descricaoCtrl = TextEditingController();
-    final clienteNomeCtrl = TextEditingController();
-    final clienteEmailCtrl = TextEditingController();
-    final clienteTelefoneCtrl = TextEditingController();
 
     String? equipeSelecionada;
-    selecionados.clear();
+    String? clienteSelecionado;
 
+    selecionados.clear();
     int etapa = 1;
 
     showDialog(
@@ -116,7 +125,7 @@ class _ProjetosPageState extends State<ProjetosPage>
                       ),
                       const Spacer(),
                       Text(
-                        etapa == 1 ? "Cadastro de Projeto" : "Materiais",
+                        etapa == 1 ? "Cadastro Projeto" : "Materiais",
                         style: const TextStyle(
                           color: corPrincipal,
                           fontSize: 20,
@@ -126,7 +135,9 @@ class _ProjetosPageState extends State<ProjetosPage>
                       const Spacer(flex: 2),
                     ],
                   ),
+
                   const SizedBox(height: 16),
+
                   Expanded(
                     child: SingleChildScrollView(
                       child: etapa == 1
@@ -134,9 +145,28 @@ class _ProjetosPageState extends State<ProjetosPage>
                               children: [
                                 _campo(tituloCtrl, "Título"),
                                 _campo(descricaoCtrl, "Descrição"),
-                                _campo(clienteNomeCtrl, "Cliente"),
-                                _campo(clienteEmailCtrl, "E-mail"),
-                                _campo(clienteTelefoneCtrl, "Telefone"),
+
+                                DropdownButtonFormField<String>(
+                                  dropdownColor: cardPreto,
+                                  decoration: _inputDecoration("Cliente"),
+                                  items: clientes.map((c) {
+                                    return DropdownMenuItem(
+                                      value: c["id"].toString(),
+                                      child: Text(
+                                        c["nome"],
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (v) {
+                                    setStateDialog(() {
+                                      clienteSelecionado = v;
+                                    });
+                                  },
+                                ),
+
                                 DropdownButtonFormField<String>(
                                   dropdownColor: cardPreto,
                                   decoration: _inputDecoration("Equipe"),
@@ -151,7 +181,11 @@ class _ProjetosPageState extends State<ProjetosPage>
                                       ),
                                     );
                                   }).toList(),
-                                  onChanged: (v) => equipeSelecionada = v,
+                                  onChanged: (v) {
+                                    setStateDialog(() {
+                                      equipeSelecionada = v;
+                                    });
+                                  },
                                 ),
                               ],
                             )
@@ -172,7 +206,9 @@ class _ProjetosPageState extends State<ProjetosPage>
                                     ),
                                     subtitle: Text(
                                       "Disponível: $disp",
-                                      style: TextStyle(color: corPrincipal),
+                                      style: const TextStyle(
+                                        color: corPrincipal,
+                                      ),
                                     ),
                                     trailing: Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -185,9 +221,6 @@ class _ProjetosPageState extends State<ProjetosPage>
                                           onPressed: sel > 0
                                               ? () => setStateDialog(() {
                                                   selecionados[id] = sel - 1;
-                                                  if (selecionados[id] == 0) {
-                                                    selecionados.remove(id);
-                                                  }
                                                 })
                                               : null,
                                         ),
@@ -216,40 +249,37 @@ class _ProjetosPageState extends State<ProjetosPage>
                             ),
                     ),
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (etapa == 2)
-                        TextButton(
-                          onPressed: () => setStateDialog(() => etapa = 1),
-                          child: const Text(
-                            "Voltar",
-                            style: TextStyle(color: corPrincipal),
-                          ),
-                        ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: corPrincipal,
-                          foregroundColor: Colors.black,
-                        ),
-                        onPressed: () async {
-                          if (etapa == 1) {
-                            setStateDialog(() => etapa = 2);
-                          } else {
-                            await cadastrarProjetoComMateriais(
-                              tituloCtrl.text,
-                              descricaoCtrl.text,
-                              clienteNomeCtrl.text,
-                              clienteEmailCtrl.text,
-                              clienteTelefoneCtrl.text,
-                              equipeSelecionada!,
-                            );
-                            Navigator.pop(context);
-                          }
-                        },
-                        child: Text(etapa == 1 ? "Avançar" : "Salvar"),
-                      ),
-                    ],
+
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: corPrincipal,
+                      foregroundColor: Colors.black,
+                    ),
+                    onPressed: () async {
+                      if (etapa == 1) {
+                        if (clienteSelecionado == null ||
+                            equipeSelecionada == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Selecione cliente e equipe"),
+                            ),
+                          );
+                          return;
+                        }
+
+                        setStateDialog(() => etapa = 2);
+                      } else {
+                        await cadastrarProjetoComMateriais(
+                          tituloCtrl.text,
+                          descricaoCtrl.text,
+                          clienteSelecionado!,
+                          equipeSelecionada!,
+                        );
+
+                        Navigator.pop(context);
+                      }
+                    },
+                    child: Text(etapa == 1 ? "Avançar" : "Salvar"),
                   ),
                 ],
               ),
@@ -260,48 +290,57 @@ class _ProjetosPageState extends State<ProjetosPage>
     );
   }
 
+  // ================= INSERT COMPLETO =================
+
   Future<void> cadastrarProjetoComMateriais(
     String titulo,
     String descricao,
-    String clienteNome,
-    String clienteEmail,
-    String clienteTelefone,
+    String clienteId,
     String equipeId,
   ) async {
+    /// 1️⃣ CRIA PROJETO
+    final user = supabase.auth.currentUser;
+    if (user == null) {
+      throw Exception("Usuário não logado");
+    }
     final projeto = await supabase
         .from('projetos')
         .insert({
-          "titulo": titulo,
+          "nome": titulo,
           "descricao": descricao,
-          "cliente_nome": clienteNome,
-          "cliente_email": clienteEmail,
-          "cliente_telefone": clienteTelefone,
+          "cliente_id": clienteId,
+          "user_id": user!.id,
           "equipe_id": equipeId,
-          "status": "Em Andamento",
+          "status": "em andamento",
         })
         .select()
         .single();
 
     final projetoId = projeto['id'];
 
+    /// 2️⃣ VINCULA EQUIPE AO PROJETO
+    await supabase.from('equipes_projetos').insert({
+      "projeto_id": projetoId,
+      "equipe_id": equipeId,
+    });
+
+    /// 3️⃣ INSERE MATERIAIS
     if (selecionados.isNotEmpty) {
-      await adicionarMateriaisAoProjeto(projetoId);
+      final dados = selecionados.entries.map((e) {
+        return {
+          "projeto_id": projetoId,
+          "estoque_id": e.key,
+          "quantidade_necessaria": e.value,
+        };
+      }).toList();
+
+      await supabase.from('materiais_projeto').insert(dados);
     }
 
     carregarProjetos();
   }
 
-  Future<void> adicionarMateriaisAoProjeto(String projetoId) async {
-    final dados = selecionados.entries.map((e) {
-      return {
-        "projeto_id": projetoId,
-        "estoque_id": e.key,
-        "quantidade": e.value,
-      };
-    }).toList();
-
-    await supabase.from('projeto_materiais').insert(dados);
-  }
+  // ================= UI =================
 
   @override
   Widget build(BuildContext context) {
@@ -329,7 +368,7 @@ class _ProjetosPageState extends State<ProjetosPage>
         label: const Text("Novo Projeto"),
       ),
       body: carregando
-          ? const Center(child: CircularProgressIndicator(color: corPrincipal))
+          ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tabController,
               children: [_lista("Em Andamento"), _lista("Concluído")],
@@ -356,13 +395,10 @@ class _ProjetosPageState extends State<ProjetosPage>
           color: cardPreto,
           child: ListTile(
             leading: const Icon(Icons.assignment, color: corPrincipal),
-            title: Text(
-              p["titulo"],
-              style: const TextStyle(color: Colors.white),
-            ),
+            title: Text(p["nome"], style: const TextStyle(color: Colors.white)),
             subtitle: Text(
-              "Cliente: ${p["cliente_nome"]}",
-              style: TextStyle(color: corPrincipal),
+              "Cliente: ${p["clientes"]?["nome"] ?? ""}",
+              style: const TextStyle(color: corPrincipal),
             ),
           ),
         );

@@ -94,18 +94,25 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
     DateTime dataPagamento,
     double? valorPago,
   ) async {
-    await supabase
-        .from('contas_pagar')
-        .update({
-          'status': 'Pago',
-          'metodo_pagamento': metodo,
-          'data_pagamento': dataPagamento.toIso8601String(),
-          if (valorPago != null) 'valor_pago': valorPago,
-        })
-        .eq('id', id)
-        .eq('user_id', userId);
+    try {
+      await supabase
+          .from('contas_pagar')
+          .update({
+            'status': 'Pago',
+            'metodo_pagamento': metodo,
+            'data_pagamento': dataPagamento.toIso8601String(),
+            if (valorPago != null) 'valor_pago': valorPago,
+          })
+          .eq('id', id);
 
-    _carregarContas();
+      _carregarContas();
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Pagamento registrado')));
+    } catch (e) {
+      print(e);
+    }
   }
 
   // ================= UPLOAD =================
@@ -223,11 +230,504 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    onTap: () => _uploadAnexo(c['id']),
+                    onTap: () => _abrirPagamento(c),
                   ),
                 );
               },
             ),
+    );
+  }
+
+  void _abrirPagamento(Map<String, dynamic> conta) {
+    String? metodo;
+    final valorPago = TextEditingController();
+    final parcelas = TextEditingController(text: '1');
+    DateTime dataPagamento = DateTime.now();
+
+    PlatformFile? comprovante;
+
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setModalState) {
+          double valor = double.tryParse(valorPago.text) ?? 0;
+          int qtdParcelas = int.tryParse(parcelas.text) ?? 1;
+          double valorParcela = qtdParcelas > 0 ? valor / qtdParcelas : valor;
+
+          return AlertDialog(
+            backgroundColor: Colors.black,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: const BorderSide(color: corPrincipal),
+            ),
+            title: const Text(
+              'Registrar Pagamento',
+              style: TextStyle(color: corPrincipal),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    conta['descricao'],
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ===== MÉTODO PAGAMENTO COM ÍCONE =====
+                  DropdownButtonFormField<String>(
+                    dropdownColor: Colors.black,
+                    style: const TextStyle(color: Colors.white),
+                    value: metodo,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'Pix',
+                        child: Row(
+                          children: [
+                            Icon(Icons.flash_on, color: corPrincipal),
+                            SizedBox(width: 8),
+                            Text('Pix'),
+                          ],
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Credito',
+                        child: Row(
+                          children: [
+                            Icon(Icons.credit_card, color: corPrincipal),
+                            SizedBox(width: 8),
+                            Text('Crédito'),
+                          ],
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Debito',
+                        child: Row(
+                          children: [
+                            Icon(Icons.credit_card, color: corPrincipal),
+                            SizedBox(width: 8),
+                            Text('Débito'),
+                          ],
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'A vista',
+                        child: Row(
+                          children: [
+                            Icon(Icons.attach_money, color: corPrincipal),
+                            SizedBox(width: 8),
+                            Text('À vista'),
+                          ],
+                        ),
+                      ),
+                    ],
+                    onChanged: (v) => setModalState(() => metodo = v),
+                    decoration: InputDecoration(
+                      labelText: 'Método pagamento',
+                      labelStyle: const TextStyle(color: corPrincipal),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: corPrincipal),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ===== VALOR =====
+                  TextField(
+                    controller: valorPago,
+                    style: const TextStyle(color: Colors.white),
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Valor pago',
+                      labelStyle: TextStyle(color: corPrincipal),
+                    ),
+                    onChanged: (_) => setModalState(() {}),
+                  ),
+
+                  // ===== PARCELAMENTO AUTOMÁTICO =====
+                  if (metodo == 'Credito') ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: parcelas,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Parcelas',
+                        labelStyle: TextStyle(color: corPrincipal),
+                      ),
+                      onChanged: (_) => setModalState(() {}),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Valor parcela: R\$ ${valorParcela.toStringAsFixed(2)}',
+                      style: const TextStyle(color: corPrincipal),
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+
+                  // ===== DATA PAGAMENTO =====
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: corPrincipal,
+                      side: const BorderSide(color: corPrincipal),
+                    ),
+                    icon: const Icon(Icons.calendar_month),
+                    label: const Text('Selecionar data pagamento'),
+                    onPressed: () async {
+                      final d = await showDatePicker(
+                        context: context,
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                        initialDate: DateTime.now(),
+                      );
+                      if (d != null) {
+                        setModalState(() => dataPagamento = d);
+                      }
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ===== ANEXAR COMPROVANTE =====
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: corPrincipal,
+                      side: const BorderSide(color: corPrincipal),
+                    ),
+                    icon: const Icon(Icons.attach_file),
+                    label: Text(
+                      comprovante == null
+                          ? 'Anexar comprovante'
+                          : comprovante!.name,
+                    ),
+                    onPressed: () async {
+                      final result = await FilePicker.platform.pickFiles();
+                      if (result != null) {
+                        setModalState(() => comprovante = result.files.first);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Cancelar',
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ),
+
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: corPrincipal,
+                  foregroundColor: Colors.black,
+                ),
+                onPressed: () async {
+                  if (metodo == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Selecione método pagamento'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  await _registrarPagamento(
+                    conta['id'].toString(),
+                    metodo!,
+                    dataPagamento,
+                    double.tryParse(valorPago.text),
+                  );
+
+                  // ===== UPLOAD COMPROVANTE =====
+                  void _abrirPagamento(Map<String, dynamic> conta) {
+                    String? metodo;
+                    final valorPago = TextEditingController();
+                    final parcelas = TextEditingController(text: '1');
+                    DateTime dataPagamento = DateTime.now();
+
+                    PlatformFile? comprovante;
+
+                    showDialog(
+                      context: context,
+                      builder: (_) => StatefulBuilder(
+                        builder: (context, setModalState) {
+                          double valor = double.tryParse(valorPago.text) ?? 0;
+                          int qtdParcelas = int.tryParse(parcelas.text) ?? 1;
+                          double valorParcela = qtdParcelas > 0
+                              ? valor / qtdParcelas
+                              : valor;
+
+                          return AlertDialog(
+                            backgroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: const BorderSide(color: corPrincipal),
+                            ),
+                            title: const Text(
+                              'Registrar Pagamento',
+                              style: TextStyle(color: corPrincipal),
+                            ),
+                            content: SingleChildScrollView(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    conta['descricao'],
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                  const SizedBox(height: 12),
+
+                                  // ===== MÉTODO PAGAMENTO COM ÍCONE =====
+                                  DropdownButtonFormField<String>(
+                                    dropdownColor: Colors.black,
+                                    style: const TextStyle(color: Colors.white),
+                                    value: metodo,
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: 'Pix',
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.flash_on,
+                                              color: corPrincipal,
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text('Pix'),
+                                          ],
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'Credito',
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.credit_card,
+                                              color: corPrincipal,
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text('Crédito'),
+                                          ],
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'Debito',
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.credit_card,
+                                              color: corPrincipal,
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text('Débito'),
+                                          ],
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'A vista',
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.attach_money,
+                                              color: corPrincipal,
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text('À vista'),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                    onChanged: (v) =>
+                                        setModalState(() => metodo = v),
+                                    decoration: InputDecoration(
+                                      labelText: 'Método pagamento',
+                                      labelStyle: const TextStyle(
+                                        color: corPrincipal,
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderSide: const BorderSide(
+                                          color: corPrincipal,
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 12),
+
+                                  // ===== VALOR =====
+                                  TextField(
+                                    controller: valorPago,
+                                    style: const TextStyle(color: Colors.white),
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Valor pago',
+                                      labelStyle: TextStyle(
+                                        color: corPrincipal,
+                                      ),
+                                    ),
+                                    onChanged: (_) => setModalState(() {}),
+                                  ),
+
+                                  // ===== PARCELAMENTO AUTOMÁTICO =====
+                                  if (metodo == 'Credito') ...[
+                                    const SizedBox(height: 12),
+                                    TextField(
+                                      controller: parcelas,
+                                      keyboardType: TextInputType.number,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                      decoration: const InputDecoration(
+                                        labelText: 'Parcelas',
+                                        labelStyle: TextStyle(
+                                          color: corPrincipal,
+                                        ),
+                                      ),
+                                      onChanged: (_) => setModalState(() {}),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Valor parcela: R\$ ${valorParcela.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        color: corPrincipal,
+                                      ),
+                                    ),
+                                  ],
+
+                                  const SizedBox(height: 16),
+
+                                  // ===== DATA PAGAMENTO =====
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.black,
+                                      foregroundColor: corPrincipal,
+                                      side: const BorderSide(
+                                        color: corPrincipal,
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.calendar_month),
+                                    label: const Text(
+                                      'Selecionar data pagamento',
+                                    ),
+                                    onPressed: () async {
+                                      final d = await showDatePicker(
+                                        context: context,
+                                        firstDate: DateTime(2000),
+                                        lastDate: DateTime(2100),
+                                        initialDate: DateTime.now(),
+                                      );
+                                      if (d != null) {
+                                        setModalState(() => dataPagamento = d);
+                                      }
+                                    },
+                                  ),
+
+                                  const SizedBox(height: 12),
+
+                                  // ===== ANEXAR COMPROVANTE =====
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.black,
+                                      foregroundColor: corPrincipal,
+                                      side: const BorderSide(
+                                        color: corPrincipal,
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.attach_file),
+                                    label: Text(
+                                      comprovante == null
+                                          ? 'Anexar comprovante'
+                                          : comprovante!.name,
+                                    ),
+                                    onPressed: () async {
+                                      final result = await FilePicker.platform
+                                          .pickFiles(withData: true);
+                                      if (result != null) {
+                                        setModalState(
+                                          () =>
+                                              comprovante = result.files.first,
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text(
+                                  'Cancelar',
+                                  style: TextStyle(color: Colors.white70),
+                                ),
+                              ),
+
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: corPrincipal,
+                                  foregroundColor: Colors.black,
+                                ),
+                                onPressed: () async {
+                                  if (metodo == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Selecione método pagamento',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  await _registrarPagamento(
+                                    conta['id'].toString(),
+                                    metodo!,
+                                    dataPagamento,
+                                    double.tryParse(valorPago.text),
+                                  );
+
+                                  // ===== UPLOAD COMPROVANTE =====
+                                  if (comprovante != null) {
+                                    await supabase.storage
+                                        .from('anexos-contas')
+                                        .uploadBinary(
+                                          '$userId/${conta['id']}/${comprovante!.name}',
+                                          comprovante!.bytes!,
+                                          fileOptions: const FileOptions(
+                                            upsert: true,
+                                          ),
+                                        );
+                                  }
+
+                                  Navigator.pop(context);
+                                },
+                                child: const Text('Salvar pagamento'),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    );
+                  }
+
+                  Navigator.pop(context);
+                },
+                child: const Text('Salvar pagamento'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -242,45 +742,120 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: Colors.black,
-        title: const Text('Nova Conta', style: TextStyle(color: corPrincipal)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: corPrincipal, width: 1.5),
+        ),
+        title: const Text(
+          'Nova Conta',
+          style: TextStyle(color: corPrincipal, fontWeight: FontWeight.bold),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: descricao,
-              decoration: const InputDecoration(labelText: 'Descrição'),
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Descrição',
+                labelStyle: const TextStyle(color: corPrincipal),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: corPrincipal),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: corPrincipal, width: 2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: valor,
+              style: const TextStyle(color: Colors.white),
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Valor'),
+              decoration: InputDecoration(
+                labelText: 'Valor',
+                labelStyle: const TextStyle(color: corPrincipal),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: corPrincipal),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: corPrincipal, width: 2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
+            const SizedBox(height: 12),
             DropdownButtonFormField(
+              dropdownColor: Colors.black,
+              style: const TextStyle(color: Colors.white),
               items: listaProjetos
                   .map((p) => DropdownMenuItem(value: p, child: Text(p)))
                   .toList(),
               onChanged: (v) => projeto = v,
-              decoration: const InputDecoration(labelText: 'Projeto'),
+              decoration: InputDecoration(
+                labelText: 'Projeto',
+                labelStyle: const TextStyle(color: corPrincipal),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: corPrincipal),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                vencimento = await showDatePicker(
-                  context: context,
-                  firstDate: DateTime(2000),
-                  lastDate: DateTime(2100),
-                  initialDate: DateTime.now(),
-                );
-              },
-              child: const Text('Selecionar Vencimento'),
+            const SizedBox(height: 18),
+
+            // BOTÃO VENCIMENTO NEON
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: corPrincipal,
+                  side: const BorderSide(color: corPrincipal),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                icon: const Icon(Icons.calendar_month),
+                label: Text(
+                  vencimento == null
+                      ? 'Selecionar vencimento'
+                      : DateFormat('dd/MM/yyyy').format(vencimento!),
+                ),
+                onPressed: () async {
+                  vencimento = await showDatePicker(
+                    context: context,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                    initialDate: DateTime.now(),
+                  );
+                  setState(() {});
+                },
+              ),
             ),
           ],
         ),
+
+        actionsPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 10,
+        ),
+
         actions: [
+          // CANCELAR
           TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.white70),
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancelar'),
           ),
+
+          // SALVAR NEON
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: corPrincipal,
+              foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
             onPressed: () {
               if (vencimento == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -297,7 +872,10 @@ class _ContasListagemPageState extends State<ContasListagemPage> {
                 'vencimento': vencimento!.toIso8601String(),
               });
             },
-            child: const Text('Salvar'),
+            child: const Text(
+              'Salvar',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),

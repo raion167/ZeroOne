@@ -64,12 +64,46 @@ class _EstoqueAdicionarMovimentacaoPageState
 
     try {
       final user = supabase.auth.currentUser;
+      final quantidade = int.parse(quantidadeCtrl.text);
+      final produtoId = produtoSelecionado!["id"];
 
+      // 🔹 Busca quantidade atual no estoque
+      final estoqueAtual = await supabase
+          .from('estoque')
+          .select('quantidade')
+          .eq('id', produtoId)
+          .single();
+
+      int qtdAtual = estoqueAtual['quantidade'] ?? 0;
+
+      // 🔹 Calcula nova quantidade
+      int novaQtd;
+
+      if (tipo == "entrada") {
+        novaQtd = qtdAtual + quantidade;
+      } else {
+        novaQtd = qtdAtual - quantidade;
+
+        if (novaQtd < 0) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text("Estoque insuficiente")));
+          return;
+        }
+      }
+
+      // 🔹 Atualiza estoque
+      await supabase
+          .from('estoque')
+          .update({'quantidade': novaQtd})
+          .eq('id', produtoId);
+
+      // 🔹 Salva movimentação
       await supabase.from('movimentacoes_estoque').insert({
-        "produto_id": produtoSelecionado!["id"],
-        "user_id": user?.id, // 🔥 salva quem fez
+        "produto_id": produtoId,
+        "user_id": user?.id,
         "tipo": tipo,
-        "quantidade": int.parse(quantidadeCtrl.text),
+        "quantidade": quantidade,
         "data_movimentacao": DateTime.now().toIso8601String(),
       });
 
@@ -79,7 +113,8 @@ class _EstoqueAdicionarMovimentacaoPageState
 
       quantidadeCtrl.clear();
       produtoSelecionado = null;
-      carregarProdutos();
+
+      carregarProdutos(); // atualiza dropdown
     } catch (e) {
       ScaffoldMessenger.of(
         context,

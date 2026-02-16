@@ -147,8 +147,72 @@ class GraficoStatusPagamento extends StatelessWidget {
         }
 
         final d = snapshot.data!;
+
         return BarChart(
           BarChartData(
+            borderData: FlBorderData(show: false),
+
+            titlesData: FlTitlesData(
+              rightTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              // EIXO Y - somente inteiros
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: 1,
+                  getTitlesWidget: (value, meta) {
+                    return Text(
+                      value.toInt().toString(),
+                      style: const TextStyle(color: Colors.white),
+                    );
+                  },
+                ),
+              ),
+
+              // EIXO X (nomes)
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    const style = TextStyle(color: Colors.white);
+
+                    switch (value.toInt()) {
+                      case 0:
+                        return const Text('Pagas', style: style);
+                      case 1:
+                        return const Text('Pendentes', style: style);
+                      case 2:
+                        return const Text('Atrasadas', style: style);
+                      default:
+                        return const Text('');
+                    }
+                  },
+                ),
+              ),
+
+              // VALORES EM CIMA DAS BARRAS
+              topTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    const style = TextStyle(color: Colors.white);
+
+                    switch (value.toInt()) {
+                      case 0:
+                        return Text('${d['pagas']}', style: style);
+                      case 1:
+                        return Text('${d['pendentes']}', style: style);
+                      case 2:
+                        return Text('${d['atrasadas']}', style: style);
+                      default:
+                        return const Text('');
+                    }
+                  },
+                ),
+              ),
+            ),
+
             barGroups: [
               BarChartGroupData(
                 x: 0,
@@ -179,6 +243,10 @@ class GraficoStatusPagamento extends StatelessWidget {
               ),
             ],
           ),
+
+          // animação
+          swapAnimationDuration: const Duration(milliseconds: 800),
+          swapAnimationCurve: Curves.easeInOut,
         );
       },
     );
@@ -187,6 +255,13 @@ class GraficoStatusPagamento extends StatelessWidget {
 
 class GraficoEvolucaoMensal extends StatelessWidget {
   const GraficoEvolucaoMensal({super.key});
+
+  double _toDouble(dynamic v) {
+    if (v == null) return 0;
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -204,15 +279,87 @@ class GraficoEvolucaoMensal extends StatelessWidget {
             )
             .toList();
 
-        return LineChart(
-          LineChartData(
-            lineBarsData: [
-              LineChartBarData(
-                spots: spots,
-                isCurved: true,
-                color: corPrincipal,
+        // calcula max Y arredondado para múltiplos de 500
+        final maxY = spots.isEmpty
+            ? 0
+            : spots.map((e) => e.y).reduce((a, b) => a > b ? a : b);
+
+        final maxYRounded = ((maxY / 500).ceil() * 500).toDouble();
+
+        return SizedBox(
+          height: 300,
+          child: LineChart(
+            LineChartData(
+              minX: 1,
+              maxX: 12,
+              minY: 0,
+              maxY: maxYRounded,
+
+              borderData: FlBorderData(show: false),
+              lineTouchData: LineTouchData(enabled: false),
+
+              titlesData: FlTitlesData(
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    interval: 1,
+                    getTitlesWidget: (value, meta) {
+                      const style = TextStyle(color: Colors.white);
+
+                      const meses = [
+                        '',
+                        'Jan',
+                        'Fev',
+                        'Mar',
+                        'Abr',
+                        'Mai',
+                        'Jun',
+                        'Jul',
+                        'Ago',
+                        'Set',
+                        'Out',
+                        'Nov',
+                        'Dez',
+                      ];
+
+                      return Text(meses[value.toInt()], style: style);
+                    },
+                  ),
+                ),
+
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    interval: 500,
+                    reservedSize: 50,
+                    getTitlesWidget: (value, meta) {
+                      return Text(
+                        value.toInt().toString(),
+                        style: const TextStyle(color: Colors.white),
+                      );
+                    },
+                  ),
+                ),
+
+                rightTitles: AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+
+                topTitles: AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
               ),
-            ],
+
+              lineBarsData: [
+                LineChartBarData(
+                  spots: spots,
+                  isCurved: true,
+                  color: corPrincipal,
+                  barWidth: 3,
+                  dotData: FlDotData(show: true),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -220,7 +367,7 @@ class GraficoEvolucaoMensal extends StatelessWidget {
   }
 }
 
-class GraficoCategorias extends StatelessWidget {
+/*class GraficoCategorias extends StatelessWidget {
   const GraficoCategorias({super.key});
 
   @override
@@ -245,9 +392,9 @@ class GraficoCategorias extends StatelessWidget {
       },
     );
   }
-}
+}*/
 
-class GraficoFornecedores extends StatelessWidget {
+/*class GraficoFornecedores extends StatelessWidget {
   const GraficoFornecedores({super.key});
 
   @override
@@ -277,9 +424,9 @@ class GraficoFornecedores extends StatelessWidget {
       },
     );
   }
-}
+}*/
 
-class GraficoHeatmapVencimentos extends StatelessWidget {
+/*class GraficoHeatmapVencimentos extends StatelessWidget {
   const GraficoHeatmapVencimentos({super.key});
 
   @override
@@ -315,4 +462,4 @@ class GraficoHeatmapVencimentos extends StatelessWidget {
       },
     );
   }
-}
+}*/

@@ -44,9 +44,9 @@ class _ContasRelatoriosPageState extends State<ContasRelatoriosPage>
           tabs: const [
             Tab(icon: Icon(Icons.pie_chart_outline), text: "Status"),
             Tab(icon: Icon(Icons.trending_up), text: "Evolução"),
-            Tab(icon: Icon(Icons.category_outlined), text: "Categorias"),
-            Tab(icon: Icon(Icons.store_outlined), text: "Fornecedores"),
-            Tab(icon: Icon(Icons.calendar_month), text: "Heatmap"),
+            //Tab(icon: Icon(Icons.category_outlined), text: "Categorias"),
+            //Tab(icon: Icon(Icons.store_outlined), text: "Fornecedores"),
+            //Tab(icon: Icon(Icons.calendar_month), text: "Heatmap"),
           ],
         ),
       ),
@@ -55,9 +55,9 @@ class _ContasRelatoriosPageState extends State<ContasRelatoriosPage>
         children: [
           _GraficoWrapper(child: GraficoStatusPagamento()),
           _GraficoWrapper(child: GraficoEvolucaoMensal()),
-          _GraficoWrapper(child: GraficoCategorias()),
-          _GraficoWrapper(child: GraficoFornecedores()),
-          _GraficoWrapper(child: GraficoHeatmapVencimentos()),
+          //_GraficoWrapper(child: GraficoCategorias()),
+          //_GraficoWrapper(child: GraficoFornecedores()),
+          //_GraficoWrapper(child: GraficoHeatmapVencimentos()),
         ],
       ),
     );

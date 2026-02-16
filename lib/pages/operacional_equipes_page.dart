@@ -41,7 +41,7 @@ class _OperacionalEquipesPageState extends State<OperacionalEquipesPage> {
       id,
       nome,
       equipe_usuario!fk_equipe_usuario_equipe(
-        usuarios_operacional(
+        usuarios_operacional!equipe_usuario_user_id_fkey(
           id,
           nome
         )
@@ -189,7 +189,7 @@ class _OperacionalEquipesPageState extends State<OperacionalEquipesPage> {
 
               await supabase.from('equipe_usuario').insert({
                 'equipe_id': equipeId,
-                'usuario_id': usuarioSelecionado,
+                'user_id': usuarioSelecionado.toString(),
               });
 
               Navigator.pop(context);

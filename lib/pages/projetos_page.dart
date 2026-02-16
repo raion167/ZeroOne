@@ -75,7 +75,7 @@ class _ProjetosPageState extends State<ProjetosPage>
       if (status == "Em Andamento") {
         return st == "em andamento" || st == "a fazer";
       }
-      return st == "concluído";
+      return st == "finalizado";
     }).toList();
 
     if (searchQuery.isEmpty) return lista;

@@ -3,12 +3,14 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:signature/signature.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+final supabase = Supabase.instance.client;
 const Color corPrincipal = Color(0xFFBBFB04);
 const Color fundoEscuro = Color(0xFF0D0D0D);
 
 class FinalizarProjetoPage extends StatefulWidget {
-  final int projetoId;
+  final String projetoId;
 
   const FinalizarProjetoPage({super.key, required this.projetoId});
 
@@ -42,39 +44,37 @@ class _FinalizarProjetoPageState extends State<FinalizarProjetoPage> {
           .toPngBytes();
 
       if (assinaturaBytes == null) {
-        throw Exception("Falha ao gerar imagem da assinatura");
+        throw Exception("Falha ao gerar assinatura");
       }
 
-      final uri = Uri.parse("http://localhost:8080/app/finalizar_projeto.php");
+      // ===== Upload assinatura no Storage =====
+      final fileName =
+          "assinaturas/${widget.projetoId}_${DateTime.now().millisecondsSinceEpoch}.png";
 
-      var request = http.MultipartRequest('POST', uri);
-      request.fields['projeto_id'] = widget.projetoId.toString();
-      request.fields['observacoes'] = obsController.text;
+      await supabase.storage
+          .from('assinaturas') // nome do bucket
+          .uploadBinary(fileName, assinaturaBytes);
 
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'assinatura',
-          assinaturaBytes,
-          filename: 'assinatura_${widget.projetoId}.png',
-        ),
+      final assinaturaUrl = supabase.storage
+          .from('assinaturas')
+          .getPublicUrl(fileName);
+
+      // ===== Atualiza projeto =====
+      await supabase
+          .from('projetos')
+          .update({
+            'status': 'finalizado',
+            'observacoes': obsController.text,
+            'assinatura_url': assinaturaUrl,
+            'data_finalizacao': DateTime.now().toIso8601String(),
+          })
+          .eq('id', widget.projetoId);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Projeto finalizado com sucesso!")),
       );
 
-      final response = await request.send();
-      final body = await response.stream.bytesToString();
-      final data = jsonDecode(body);
-
-      if (data["success"] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("✅ Projeto finalizado com sucesso!")),
-        );
-        Navigator.pop(context, true);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Erro: ${data["message"] ?? "Erro desconhecido"}"),
-          ),
-        );
-      }
+      Navigator.pop(context, true);
     } catch (e) {
       ScaffoldMessenger.of(
         context,

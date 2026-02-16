@@ -35,21 +35,21 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
 
       for (final e in res) {
         final data = DateTime.parse(e['data_competencia']);
+
         final chaveMes =
             "${data.year.toString().padLeft(4, '0')}-${data.month.toString().padLeft(2, '0')}";
 
-        final valor = double.tryParse(e['valor_recebido'].toString()) ?? 0;
+        final valor = (e['valor_recebido'] as num?)?.toDouble() ?? 0;
 
         totalPorMes[chaveMes] = (totalPorMes[chaveMes] ?? 0) + valor;
       }
 
       final lista = totalPorMes.entries.map((e) {
-        return {'mes': e.key, 'total': e.value.toStringAsFixed(2)};
+        return {'mes': e.key, 'total': e.value};
       }).toList();
 
-      lista.sort(
-        (a, b) => (a['mes'] as DateTime).compareTo(b['mes'] as DateTime),
-      );
+      // ordenação correta
+      lista.sort((a, b) => (a['mes'] as String).compareTo(b['mes'] as String));
 
       setState(() {
         dados = lista;
@@ -109,10 +109,11 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
                             leftTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
-                                reservedSize: 42,
+                                reservedSize: 70,
                                 getTitlesWidget: (value, meta) {
                                   return Text(
-                                    value.toInt().toString(),
+                                    'R\$ ${value.toInt()}',
+
                                     style: const TextStyle(
                                       color: Colors.white54,
                                       fontSize: 13,
@@ -121,29 +122,51 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
                                 },
                               ),
                             ),
+
                             rightTitles: const AxisTitles(
                               sideTitles: SideTitles(showTitles: false),
                             ),
+
                             topTitles: const AxisTitles(
                               sideTitles: SideTitles(showTitles: false),
                             ),
+
                             bottomTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
                                 interval: 1,
                                 getTitlesWidget: (value, meta) {
-                                  if (value.toInt() < dados.length) {
-                                    final mes = dados[value.toInt()]['mes'];
-                                    final partes = mes.split('-');
-                                    return Text(
-                                      "${partes[1]}/${partes[0]}",
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 13,
-                                      ),
-                                    );
+                                  if (value.toInt() >= dados.length) {
+                                    return const SizedBox.shrink();
                                   }
-                                  return const SizedBox.shrink();
+
+                                  final mes = dados[value.toInt()]['mes'];
+                                  final partes = mes.split('-');
+                                  final mesNumero = int.parse(partes[1]);
+
+                                  const meses = [
+                                    '',
+                                    'Jan',
+                                    'Fev',
+                                    'Mar',
+                                    'Abr',
+                                    'Mai',
+                                    'Jun',
+                                    'Jul',
+                                    'Ago',
+                                    'Set',
+                                    'Out',
+                                    'Nov',
+                                    'Dez',
+                                  ];
+
+                                  return Text(
+                                    meses[mesNumero],
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                    ),
+                                  );
                                 },
                               ),
                             ),
@@ -151,7 +174,7 @@ class _EntradasPorMesPageState extends State<EntradasPorMesPage> {
 
                           barGroups: dados.asMap().entries.map((e) {
                             final index = e.key;
-                            final valor = double.parse(e.value['total']);
+                            final valor = e.value['total'] as double;
 
                             return BarChartGroupData(
                               x: index,

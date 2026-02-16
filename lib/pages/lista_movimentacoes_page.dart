@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
 
 final supabase = Supabase.instance.client;
 const Color corPrincipal = Color(0xFFBBFB04);
@@ -77,13 +78,17 @@ class _EstoqueMovimentacoesListPageState
             : 'Sem usuário';
 
         final quantidade = item['quantidade'] ?? 0;
-        final data = item['data_movimentacao']?.toString() ?? '';
+        String dataFormatada = '-';
+        if (item['data_movimentacao'] != null) {
+          final dt = DateTime.parse(item['data_movimentacao']);
+          dataFormatada = DateFormat('dd/MM/yyyy HH:mm').format(dt);
+        }
 
         final registro = {
           'produto': produto,
           'usuario': usuario,
           'quantidade': quantidade,
-          'data': data,
+          'data': dataFormatada,
         };
 
         if ((item['tipo'] ?? '') == 'entrada') {
@@ -269,7 +274,7 @@ class _MovimentacaoLista extends StatelessWidget {
                     style: const TextStyle(color: Colors.white),
                   ),
                   subtitle: Text(
-                    'Qtd: ${item['quantidade']}\nUsuário: ${item['usuario']}',
+                    'Qtd: ${item['quantidade']}\nUsuário: ${item['usuario']}\nData: ${item['data']}',
                     style: const TextStyle(color: Colors.white70),
                   ),
                 );

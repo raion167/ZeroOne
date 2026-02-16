@@ -53,8 +53,12 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
     final resp = await supabase
         .from('equipe_usuario')
         .select('''
-      usuario_id,
-      usuarios_operacional(id,nome,email)
+      user_id,
+      usuarios_operacional!equipe_usuario_user_id_fkey(
+        id,
+        nome,
+        email
+      )
     ''')
         .eq('equipe_id', widget.equipeId);
 
@@ -68,7 +72,7 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
     await supabase
         .from('equipe_usuario')
         .delete()
-        .eq('usuario_id', usuarioId)
+        .eq('user_id', usuarioId)
         .eq('equipe_id', widget.equipeId);
     return true;
   }
@@ -78,7 +82,7 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
     final resp = await supabase
         .from('projetos')
         .select()
-        .eq('equipe_id', widget.equipeId);
+        .eq('status', 'em andamento');
 
     projetos = List<Map<String, dynamic>>.from(resp);
   }
@@ -100,7 +104,7 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
         .from('projetos')
         .select('id')
         .eq('equipe_id', widget.equipeId)
-        .eq('status', 'andamento');
+        .eq('status', 'em andamento');
 
     status = {
       'total': totalResp.length,
@@ -223,15 +227,11 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
           child: ListTile(
             leading: const Icon(Icons.assignment, color: corPrincipal),
             title: Text(
-              p['titulo'] ?? 'Projeto sem título',
+              p['nome'] ?? 'Projeto sem título',
               style: const TextStyle(
                 color: corPrincipal,
                 fontWeight: FontWeight.bold,
               ),
-            ),
-            subtitle: Text(
-              p['descricao'] ?? '',
-              style: const TextStyle(color: Colors.white70),
             ),
             trailing: const Icon(
               Icons.arrow_forward_ios,
@@ -242,9 +242,8 @@ class _DetalhesEquipePageState extends State<DetalhesEquipePage>
               final bool? finalizado = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => FinalizarProjetoPage(
-                    projetoId: int.parse(p['id'].toString()),
-                  ),
+                  builder: (_) =>
+                      FinalizarProjetoPage(projetoId: (p['id'].toString())),
                 ),
               );
 

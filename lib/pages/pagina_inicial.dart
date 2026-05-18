@@ -165,7 +165,6 @@ class _HomePageState extends State<HomePage> {
         "loading": false,
       },
     ];
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: _posicao == null

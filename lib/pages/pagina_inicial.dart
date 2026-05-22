@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zeroone/pages/clientes_page.dart';
 import 'package:zeroone/pages/controle_estoque_page.dart';
 import 'package:zeroone/pages/engenharia_page.dart';
@@ -12,6 +13,7 @@ import 'package:zeroone/pages/operacional_page.dart';
 import 'package:zeroone/pages/projetos_page.dart';
 
 const Color corPrincipal = Color(0xFFBBFB04);
+final supabase = Supabase.instance.client;
 
 class HomePage extends StatefulWidget {
   final String nomeUsuario;
@@ -31,6 +33,7 @@ class _HomePageState extends State<HomePage> {
   String _status = "Verificando localização...";
   Position? _posicao;
   bool _loadingClima = true;
+  List<Map<String, dynamic>> _clientesMapeados = [];
 
   String _temp = "--";
   String _climaDesc = "Carregando...";
@@ -78,8 +81,39 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _inicializarDados() async {
     await _verificarLocalizacao();
+    await _buscarClientesDoBanco();
     if (_posicao != null) {
       _buscarClimaReal();
+    }
+  }
+
+  // Nova função corrigida e blindada contra erros de iteração no Flutter Web
+  Future<void> _buscarClientesDoBanco() async {
+    try {
+      final response = await supabase.from('clientes').select();
+
+      // Criamos uma lista fortemente tipada vazia
+      final List<Map<String, dynamic>> listaTemporaria = [];
+
+      if (response != null && response is List) {
+        for (var item in response) {
+          // Converte com segurança cada linha vinda do banco
+          final dadosCliente = Map<String, dynamic>.from(item);
+
+          // Verifica se as coordenadas existem
+          if (dadosCliente['latitude'] != null &&
+              dadosCliente['longitude'] != null) {
+            listaTemporaria.add(dadosCliente);
+          }
+        }
+      }
+
+      setState(() {
+        _clientesMapeados =
+            listaTemporaria; // Atribui a lista já filtrada e purificada
+      });
+    } catch (e) {
+      print("Erro ao carregar marcadores dos clientes no mapa inicial: $e");
     }
   }
 
@@ -135,6 +169,53 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    //CONSTRUÇÃO DINAMICA DA LISTA DE MARCADORES
+    final List<Marker> todosOsMarcadores = [];
+    //1. ADICIONA O PINO DO USUARIO LOGADO
+    if (_posicao != null) {
+      todosOsMarcadores.add(
+        Marker(
+          point: LatLng(_posicao!.latitude, _posicao!.longitude),
+          width: 80,
+          height: 80,
+          child: const NeonMarker(),
+        ),
+      );
+    }
+    // 2. Loop para varrer e injetar os pins de cada cliente mapeado
+    // 2. Loop para varrer e injetar os pins de cada cliente mapeado
+    for (var cliente in _clientesMapeados) {
+      // Força a conversão para String antes do parse para evitar erros caso venha como double ou String do banco
+      final String? latStr = cliente['latitude']?.toString();
+      final String? lonStr = cliente['longitude']?.toString();
+
+      if (latStr != null && lonStr != null) {
+        final double? lat = double.tryParse(latStr);
+        final double? lon = double.tryParse(lonStr);
+
+        if (lat != null && lon != null) {
+          print(
+            "Desenhando marcador para: ${cliente['nome']} em ($lat, $lon)",
+          ); // <-- Para ver no console se passou aqui
+          todosOsMarcadores.add(
+            Marker(
+              point: LatLng(lat, lon),
+              width: 45,
+              height: 45,
+              child: Tooltip(
+                message: cliente['nome'] ?? 'Cliente Sem Nome',
+                triggerMode: TooltipTriggerMode.tap,
+                child: const Icon(
+                  Icons.location_on,
+                  color: corPrincipal, // Cor Neon do seu app
+                  size: 38,
+                ),
+              ),
+            ),
+          );
+        }
+      }
+    }
     final List<Map<String, dynamic>> painelSolar = [
       {
         "nome": "Irradiação Solar",
@@ -187,19 +268,7 @@ class _HomePageState extends State<HomePage> {
                           "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
                       subdomains: const ['a', 'b', 'c', 'd'],
                     ),
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: LatLng(
-                            _posicao!.latitude,
-                            _posicao!.longitude,
-                          ),
-                          width: 80,
-                          height: 80,
-                          child: const NeonMarker(),
-                        ),
-                      ],
-                    ),
+                    MarkerLayer(markers: todosOsMarcadores),
                   ],
                 ),
 

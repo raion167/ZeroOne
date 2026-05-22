@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:latlong2/latlong.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map/flutter_map.dart'; // Importante para o mini mapa
 import 'painel_cliente_solar_page.dart';
 
 const Color corPrincipal = Color(0xFFBBFB04);
@@ -22,6 +22,7 @@ class ClientesPage extends StatefulWidget {
 class _ClientesPageState extends State<ClientesPage> {
   bool carregando = true;
   List<Map<String, dynamic>> clientes = [];
+  final String apiKey = "1a791ec909e266fe642547a621b5123f";
 
   @override
   void initState() {
@@ -46,7 +47,7 @@ class _ClientesPageState extends State<ClientesPage> {
     setState(() => carregando = false);
   }
 
-  // ================= GEOCODIFICAÇÃO ULTRA PRECISA (OSM) ================
+  // ================= GEOCODIFICAÇÃO (STR ➔ LAT/LNG) =================
   Future<LatLng?> _obterCoordenadas(
     String rua,
     String numero,
@@ -54,44 +55,21 @@ class _ClientesPageState extends State<ClientesPage> {
     String cidade,
     String estado,
   ) async {
-    String query = "$rua, $numero - $bairro, $cidade - $estado, Brasil";
+    final Map<String, String> headersApi = {
+      'User-Agent': 'MeuAppSolar/1.0 (joaopedrodevweb@gmail.com)',
+      'Accept-Language': 'pt-BR,pt;q=0.9',
+    };
 
-    final urlUri = Uri.parse(
-      "https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=1",
+    //1 TENTATIVA
+    String queryCompleta = "$rua, $numero - $bairro, $cidade - $estado, Brasil";
+    final urlCompleta = Uri.parse(
+      "https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(queryCompleta)}&format=json&limit=1",
     );
-
     try {
+      print("Tentando geocodificação completa: $queryCompleta");
       final response = await http
-          .get(
-            urlUri,
-            headers: {'User-Agent': 'MeuAppSolar/1.0 (seuemail@provedor.com)'},
-          )
-          .timeout(const Duration(seconds: 8));
-
-      if (response.statusCode == 200) {
-        final List dados = json.decode(response.body);
-        if (dados.isNotEmpty) {
-          double lat = double.parse(dados[0]['lat']);
-          double lon = double.parse(dados[0]['lon']);
-          return LatLng(lat, lon);
-        }
-      }
-    } catch (e) {
-      print("Erro no geocoding principal: $e");
-    }
-
-    // --- FALLBACK (PLANO B) ---
-    print("Rua não encontrada no OSM, tentando apenas pela cidade...");
-    String queryCidade = "$cidade - $estado, Brasil";
-
-    final urlCidadeUri = Uri.parse(
-      "https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(queryCidade)}&format=json&limit=1",
-    );
-
-    try {
-      final response = await http
-          .get(urlCidadeUri, headers: {'User-Agent': 'MeuAppSolar/1.0'})
-          .timeout(const Duration(seconds: 5));
+          .get(urlCompleta, headers: headersApi)
+          .timeout(const Duration(seconds: 6));
 
       if (response.statusCode == 200) {
         final List dados = json.decode(response.body);
@@ -102,8 +80,59 @@ class _ClientesPageState extends State<ClientesPage> {
           );
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      print("Erro na tentativa 1: $e");
+    }
+    //2 TENTATIVA
+    String querySemNumero = "$rua, $cidade - $estado, Brasil";
+    final urlSemNumero = Uri.parse(
+      "https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(querySemNumero)}&format=json&limit=1",
+    );
+    try {
+      print("Tentativa 2 (Sem número): $querySemNumero");
+      final response = await http
+          .get(urlSemNumero, headers: headersApi)
+          .timeout(const Duration(seconds: 5));
 
+      if (response.statusCode == 200) {
+        final List dados = json.decode(response.body);
+        if (dados.isEmpty) {
+          print("Endereço encontrado aproximado");
+          return LatLng(
+            double.parse(dados[0]['lat']),
+            double.parse(dados[0]['lon']),
+          );
+        }
+      }
+    } catch (e) {
+      print("Erro na tentativa 2: $e");
+    }
+
+    //3 TENTATIVA
+    String queryCidade = "$cidade - $estado, Brasil";
+    final urlCidade = Uri.parse(
+      "https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(queryCidade)}&format=json&limit=1",
+    );
+
+    try {
+      print("Tentativa 3: $queryCidade");
+      final response = await http
+          .get(urlCidade, headers: headersApi)
+          .timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final List dados = json.decode(response.body);
+        if (dados.isNotEmpty) {
+          print("Endereço encontado aproximado pela cidade");
+          return LatLng(
+            double.parse(dados[0]['lat']),
+            double.parse(dados[0]['lon']),
+          );
+        }
+      }
+    } catch (e) {
+      print("Erro na tentativa 3: $e");
+    }
     return null;
   }
 
@@ -113,6 +142,7 @@ class _ClientesPageState extends State<ClientesPage> {
     final emailCtrl = TextEditingController();
     final telefoneCtrl = TextEditingController();
 
+    // Controllers destrinchados do Endereço
     final ruaCtrl = TextEditingController();
     final numeroCtrl = TextEditingController();
     final bairroCtrl = TextEditingController();
@@ -120,6 +150,7 @@ class _ClientesPageState extends State<ClientesPage> {
     final estadoCtrl = TextEditingController();
     final cepCtrl = TextEditingController();
 
+    // Estados locais do Dialog
     bool salvandoNoDialog = false;
     bool buscandoCoordenadas = false;
     LatLng? coordenadasPreview;
@@ -130,13 +161,14 @@ class _ClientesPageState extends State<ClientesPage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            // Função interna para disparar a busca do preview
             void buscarPreviewLocalizacao() async {
-              if (cidadeCtrl.text.isEmpty ||
-                  ruaCtrl.text.isEmpty ||
-                  estadoCtrl.text.isEmpty) {
+              if (cidadeCtrl.text.isEmpty || ruaCtrl.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Preencha Rua, Cidade e UF para verificar.'),
+                    content: Text(
+                      'Digite ao menos a Rua e a Cidade para o preview.',
+                    ),
                   ),
                 );
                 return;
@@ -144,6 +176,9 @@ class _ClientesPageState extends State<ClientesPage> {
 
               setDialogState(() => buscandoCoordenadas = true);
 
+              // Junta as partes para enviar à API de mapas
+              String enderecoCompleto =
+                  "${ruaCtrl.text.trim()}, ${numeroCtrl.text.trim()} - ${bairroCtrl.text.trim()}, ${cidadeCtrl.text.trim()} - ${estadoCtrl.text.trim()}, Brasil";
               LatLng? local = await _obterCoordenadas(
                 ruaCtrl.text.trim(),
                 numeroCtrl.text.trim(),
@@ -152,30 +187,22 @@ class _ClientesPageState extends State<ClientesPage> {
                 estadoCtrl.text.trim(),
               );
 
-              if (local != null) {
-                setDialogState(() {
-                  buscandoCoordenadas = false;
+              setDialogState(() {
+                buscandoCoordenadas = false;
+                if (local != null) {
                   coordenadasPreview = local;
-                });
-
-                // CORREÇÃO AQUI: Aguarda o próximo frame para garantir que o FlutterMap
-                // processou a existência das novas coordenadas antes de mover a câmara.
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (miniMapController.mapEventStream != null) {
-                    // Garante que o mapa está pronto
-                    miniMapController.move(local, 15);
-                  }
-                });
-              } else {
-                setDialogState(() => buscandoCoordenadas = false);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Endereço não localizado. Verifique a ortografia.',
+                  // Move a câmera do mini mapa para o ponto encontrado
+                  miniMapController.move(local, 15);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Não foi possível gerar o preview deste endereço.',
+                      ),
                     ),
-                  ),
-                );
-              }
+                  );
+                }
+              });
             }
 
             return AlertDialog(
@@ -198,6 +225,7 @@ class _ClientesPageState extends State<ClientesPage> {
                       _campo(telefoneCtrl, 'Telefone'),
                       const Divider(color: Colors.white24, height: 20),
 
+                      // Grid / Linhas do Endereço Destrinchado
                       Row(
                         children: [
                           Expanded(flex: 3, child: _campo(ruaCtrl, 'Rua')),
@@ -225,6 +253,7 @@ class _ClientesPageState extends State<ClientesPage> {
 
                       const SizedBox(height: 10),
 
+                      // Botão de Preview do Mapa
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: corPrincipal),
@@ -267,7 +296,10 @@ class _ClientesPageState extends State<ClientesPage> {
                             options: MapOptions(
                               initialCenter:
                                   coordenadasPreview ??
-                                  const LatLng(-23.55052, -46.633308),
+                                  const LatLng(
+                                    -23.55052,
+                                    -46.633308,
+                                  ), // Padrão SP caso nulo
                               initialZoom: coordenadasPreview != null ? 15 : 4,
                             ),
                             children: [
@@ -334,6 +366,7 @@ class _ClientesPageState extends State<ClientesPage> {
                             String enderecoFormatado =
                                 "${ruaCtrl.text.trim()}, ${numeroCtrl.text.trim()} - ${cidadeCtrl.text.trim()}";
 
+                            // 1. Se o usuário ainda não clicou em verificar, busca a coordenada antes de salvar
                             coordenadasPreview ??= await _obterCoordenadas(
                               ruaCtrl.text.trim(),
                               numeroCtrl.text.trim(),
@@ -342,6 +375,7 @@ class _ClientesPageState extends State<ClientesPage> {
                               estadoCtrl.text.trim(),
                             );
 
+                            // 2. Salva no banco (Campos Destrinchados)
                             await supabase.from('clientes').insert({
                               'nome': nomeCtrl.text.trim(),
                               'email': emailCtrl.text.trim(),
@@ -353,22 +387,28 @@ class _ClientesPageState extends State<ClientesPage> {
                               'estado': estadoCtrl.text.trim().toUpperCase(),
                               'cep': cepCtrl.text.trim(),
                               'endereco': enderecoFormatado,
+                              'latitude': coordenadasPreview?.latitude,
+                              'longitude': coordenadasPreview
+                                  ?.longitude, // Mantido para compatibilidade de listagem
                             });
 
-                            // CORREÇÃO AQUI:
-                            // 1. Fecha apenas o Dialog de cadastro
-                            Navigator.pop(context);
+                            Navigator.pop(context); // Fecha Dialog
 
-                            // 2. Atualiza a lista da tela principal de clientes
-                            carregarClientes();
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Cliente cadastrado com sucesso!',
+                            if (coordenadasPreview != null) {
+                              Navigator.pop(context, {
+                                "nome": nomeCtrl.text.trim(),
+                                "coordenadas": coordenadasPreview,
+                              });
+                            } else {
+                              carregarClientes();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Cliente salvo sem marcador geográfico.',
+                                  ),
                                 ),
-                              ),
-                            );
+                              );
+                            }
                           } catch (e) {
                             setDialogState(() => salvandoNoDialog = false);
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -395,6 +435,7 @@ class _ClientesPageState extends State<ClientesPage> {
     );
   }
 
+  // ================= UI LISTAGEM DE CLIENTES =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -426,6 +467,7 @@ class _ClientesPageState extends State<ClientesPage> {
               itemBuilder: (_, i) {
                 final c = clientes[i];
 
+                // Constrói exibição amigável do endereço para o card
                 String exibeEndereco = "";
                 if (c['rua'] != null) {
                   exibeEndereco =
@@ -485,6 +527,7 @@ class _ClientesPageState extends State<ClientesPage> {
     );
   }
 
+  // ================= CAMPO INPUT REUTILIZÁVEL =================
   Widget _campo(TextEditingController c, String label) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),

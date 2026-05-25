@@ -10,58 +10,102 @@ class EntradasPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Detecta se a tela atual é Desktop ou um Tablet largo
+    final bool isDesktop = MediaQuery.of(context).size.width > 800;
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text("Entradas"),
+        title: const Text(
+          "Entradas e Receitas",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
         backgroundColor: Colors.black,
         foregroundColor: corPrincipal,
         elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: GridView.count(
-          crossAxisCount: 2,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          children: [
-            FinanceiroCardAnimado(
-              icon: Icons.dashboard_outlined,
-              label: "Visão Geral",
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const EntradasVisaoGeralPage(),
-                  ),
-                );
-              },
-            ),
-            FinanceiroCardAnimado(
-              icon: Icons.list_alt_outlined,
-              label: "Listagem de Entradas",
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const EntradasListagemPage(),
-                  ),
-                );
-              },
-            ),
-            FinanceiroCardAnimado(
-              icon: Icons.bar_chart_outlined,
-              label: "Relatórios e Análises",
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const EntradasRelatoriosPage(),
-                  ),
-                );
-              },
-            ),
-          ],
+      body: Center(
+        child: Container(
+          // Mantém o conteúdo centralizado e com largura controlada no Desktop
+          constraints: const BoxConstraints(maxWidth: 1200),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Cabeçalho da Página
+              const Text(
+                "Gestão de Recebíveis",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                "Acompanhe o fluxo de entrada, receitas de projetos e aportes financeiros.",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.5),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 40),
+
+              // GRID DE CARDS OPERACIONAIS
+              Expanded(
+                child: GridView.count(
+                  // 3 colunas no Desktop, 2 no Mobile
+                  crossAxisCount: isDesktop ? 3 : 2,
+                  mainAxisSpacing: 20,
+                  crossAxisSpacing: 20,
+                  // Ajuste de proporção para o card não ficar "quadradão" no Desktop
+                  childAspectRatio: isDesktop ? 1.5 : 1.0,
+                  physics: const BouncingScrollPhysics(),
+                  children: [
+                    FinanceiroCardAnimado(
+                      icon: Icons.insights_rounded,
+                      label: "Visão Geral",
+                      descricao:
+                          "Gráficos de faturamento, projeções e metas de entrada.",
+                      isDesktop: isDesktop,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const EntradasVisaoGeralPage(),
+                        ),
+                      ),
+                    ),
+                    FinanceiroCardAnimado(
+                      icon: Icons.receipt_long_rounded,
+                      label: "Listagem de Entradas",
+                      descricao:
+                          "Consulta detalhada de faturas pagas e recebimentos pendentes.",
+                      isDesktop: isDesktop,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const EntradasListagemPage(),
+                        ),
+                      ),
+                    ),
+                    FinanceiroCardAnimado(
+                      icon: Icons.pie_chart_outline_rounded,
+                      label: "Relatórios e Análises",
+                      descricao:
+                          "Análise de lucratividade por categoria e origem de receita.",
+                      isDesktop: isDesktop,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const EntradasRelatoriosPage(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -71,12 +115,16 @@ class EntradasPage extends StatelessWidget {
 class FinanceiroCardAnimado extends StatefulWidget {
   final IconData icon;
   final String label;
+  final String descricao;
+  final bool isDesktop;
   final VoidCallback onTap;
 
   const FinanceiroCardAnimado({
     super.key,
     required this.icon,
     required this.label,
+    required this.descricao,
+    required this.isDesktop,
     required this.onTap,
   });
 
@@ -88,19 +136,18 @@ class _FinanceiroCardAnimadoState extends State<FinanceiroCardAnimado>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scale;
+  bool _isHovered = false; // Estado para o efeito de brilho no Desktop
 
   @override
   void initState() {
     super.initState();
-
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 140),
-      lowerBound: 0.94,
+      duration: const Duration(milliseconds: 120),
+      lowerBound: 0.95,
       upperBound: 1.0,
       value: 1.0,
     );
-
     _scale = _controller;
   }
 
@@ -112,49 +159,109 @@ class _FinanceiroCardAnimadoState extends State<FinanceiroCardAnimado>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _controller.reverse(),
-      onTapUp: (_) {
-        _controller.forward();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.forward(),
-      child: ScaleTransition(
-        scale: _scale,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0B0B0B),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: corPrincipal.withOpacity(0.5),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: corPrincipal.withOpacity(0.35),
-                blurRadius: 18,
-                spreadRadius: 1,
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTapDown: (_) => _controller.reverse(),
+        onTapUp: (_) {
+          _controller.forward();
+          widget.onTap();
+        },
+        onTapCancel: () => _controller.forward(),
+        child: ScaleTransition(
+          scale: _scale,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              color: _isHovered
+                  ? const Color(0xFF141414)
+                  : const Color(0xFF0B0B0B),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: _isHovered
+                    ? corPrincipal
+                    : corPrincipal.withOpacity(0.35),
+                width: _isHovered ? 1.5 : 1.0,
               ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(widget.icon, color: corPrincipal, size: 48),
-                const SizedBox(height: 12),
-                Text(
-                  widget.label,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: corPrincipal,
-                  ),
+              boxShadow: [
+                BoxShadow(
+                  color: corPrincipal.withOpacity(_isHovered ? 0.4 : 0.2),
+                  blurRadius: _isHovered ? 25 : 15,
+                  spreadRadius: 1,
                 ),
               ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: widget.isDesktop
+                  ? Row(
+                      // LAYOUT DESKTOP: Organização Horizontal
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: corPrincipal.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(
+                            widget.icon,
+                            color: corPrincipal,
+                            size: 40,
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.label,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                widget.descricao,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.45),
+                                  height: 1.3,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          color: corPrincipal,
+                          size: 14,
+                        ),
+                      ],
+                    )
+                  : Column(
+                      // LAYOUT MOBILE: Organização Vertical Centralizada
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(widget.icon, color: corPrincipal, size: 44),
+                        const SizedBox(height: 14),
+                        Text(
+                          widget.label,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: corPrincipal,
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ),
         ),

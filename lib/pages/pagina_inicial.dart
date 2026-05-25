@@ -8,9 +8,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zeroone/pages/clientes_page.dart';
 import 'package:zeroone/pages/controle_estoque_page.dart';
 import 'package:zeroone/pages/engenharia_page.dart';
+import 'package:zeroone/pages/estoque_adicionar_page.dart';
+import 'package:zeroone/pages/estoque_lista_page.dart';
+import 'package:zeroone/pages/estoque_movimentacoes_page.dart';
 import 'package:zeroone/pages/financeiro_page.dart';
+import 'package:zeroone/pages/operacional_equipes_page.dart';
+import 'package:zeroone/pages/operacional_operadores_page.dart';
 import 'package:zeroone/pages/operacional_page.dart';
 import 'package:zeroone/pages/projetos_page.dart';
+import 'contas_pagar_page.dart';
+import 'entradas_page.dart';
 
 const Color corPrincipal = Color(0xFFBBFB04);
 final supabase = Supabase.instance.client;
@@ -33,6 +40,7 @@ class _HomePageState extends State<HomePage> {
   String _status = "Verificando localização...";
   Position? _posicao;
   bool _loadingClima = true;
+  bool _sincronizando = false;
   List<Map<String, dynamic>> _clientesMapeados = [];
 
   String _temp = "--";
@@ -85,10 +93,13 @@ class _HomePageState extends State<HomePage> {
     if (_posicao != null) {
       _buscarClimaReal();
     }
+    if (mounted) setState(() {});
   }
 
   // Nova função corrigida e blindada contra erros de iteração no Flutter Web
   Future<void> _buscarClientesDoBanco() async {
+    if (!mounted) return;
+    setState(() => _sincronizando = true);
     try {
       final response = await supabase.from('clientes').select();
 
@@ -107,13 +118,17 @@ class _HomePageState extends State<HomePage> {
           }
         }
       }
-
-      setState(() {
-        _clientesMapeados =
-            listaTemporaria; // Atribui a lista já filtrada e purificada
-      });
+      if (mounted) {
+        setState(() {
+          _clientesMapeados = listaTemporaria;
+        });
+      }
     } catch (e) {
       print("Erro ao carregar marcadores dos clientes no mapa inicial: $e");
+    } finally {
+      if (mounted) {
+        setState(() => _sincronizando = false);
+      }
     }
   }
 
@@ -182,7 +197,6 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     }
-    // 2. Loop para varrer e injetar os pins de cada cliente mapeado
     // 2. Loop para varrer e injetar os pins de cada cliente mapeado
     for (var cliente in _clientesMapeados) {
       // Força a conversão para String antes do parse para evitar erros caso venha como double ou String do banco
@@ -306,15 +320,16 @@ class _HomePageState extends State<HomePage> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              _BotaoMenuFlutuante(
+                              _botaoSimplesMenu(
                                 icon: Icons.home_filled,
                                 label: "Início",
                                 isSelected: true,
                                 onTap: () {},
                               ),
-                              _BotaoMenuFlutuante(
+                              _botaoSimplesMenu(
                                 icon: Icons.people_alt,
                                 label: "Clientes",
+                                isSelected: false,
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -322,45 +337,148 @@ class _HomePageState extends State<HomePage> {
                                   ),
                                 ),
                               ),
-                              _BotaoMenuFlutuante(
+
+                              _botaoDropdownMenu(
                                 icon: Icons.inventory_2,
                                 label: "Estoque",
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ControleEstoquePage(
-                                      nomeUsuario: widget.nomeUsuario,
-                                      emailUsuario: widget.emailUsuario,
+                                itens: const [
+                                  PopupMenuItem(
+                                    value: 'estoque',
+                                    child: Text(
+                                      'Itens em Estoque',
+                                      style: TextStyle(color: Colors.white60),
                                     ),
                                   ),
-                                ),
+                                  PopupMenuItem(
+                                    value: 'item',
+                                    child: Text(
+                                      'Adicionar Item',
+                                      style: TextStyle(color: Colors.white60),
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'movimentacao',
+                                    child: Text(
+                                      'Movimentações',
+                                      style: TextStyle(color: Colors.white60),
+                                    ),
+                                  ),
+                                ],
+                                onSelected: (valor) {
+                                  if (valor == 'estoque') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => EstoqueListaPage(
+                                          nomeUsuario: widget.nomeUsuario,
+                                          emailUsuario: widget.nomeUsuario,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  if (valor == 'item') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => EstoqueAdicionarPage(
+                                          nomeUsuario: widget.nomeUsuario,
+                                          emailUsuario: widget.emailUsuario,
+                                        ),
+                                      ),
+                                    );
+                                  } else if (valor == 'movimentacao') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            EstoqueMovimentacoesPage(
+                                              nomeUsuario: widget.nomeUsuario,
+                                              emailUsuario: widget.emailUsuario,
+                                            ),
+                                      ),
+                                    );
+                                  }
+                                },
                               ),
-                              _BotaoMenuFlutuante(
+                              _botaoDropdownMenu(
                                 icon: Icons.account_balance_wallet,
                                 label: "Financeiro",
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => FinanceiroPage(
-                                      nomeUsuario: widget.nomeUsuario,
-                                      emailUsuario: widget.emailUsuario,
+                                itens: const [
+                                  PopupMenuItem(
+                                    value: 'pagar',
+                                    child: Text(
+                                      'Contas a Pagar',
+                                      style: TextStyle(color: Colors.white60),
                                     ),
                                   ),
-                                ),
+                                  PopupMenuItem(
+                                    value: 'entradas',
+                                    child: Text(
+                                      'Entradas / Receitas',
+                                      style: TextStyle(color: Colors.white60),
+                                    ),
+                                  ),
+                                ],
+                                onSelected: (valor) {
+                                  if (valor == 'pagar') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const ContasPagarPage(),
+                                      ),
+                                    );
+                                  } else if (valor == 'entradas') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const EntradasPage(),
+                                      ),
+                                    );
+                                  }
+                                },
                               ),
-                              _BotaoMenuFlutuante(
+                              _botaoDropdownMenu(
                                 icon: Icons.handyman,
                                 label: "Operacional",
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => OperacionalPage(
-                                      nomeUsuario: widget.nomeUsuario,
-                                      emailUsuario: widget.emailUsuario,
+                                itens: const [
+                                  PopupMenuItem(
+                                    value: 'equipes',
+                                    child: Text(
+                                      'Equipes',
+                                      style: TextStyle(color: Colors.white60),
                                     ),
                                   ),
-                                ),
+                                  PopupMenuItem(
+                                    value: 'operadores',
+                                    child: Text(
+                                      'Operadores',
+                                      style: TextStyle(color: Colors.white60),
+                                    ),
+                                  ),
+                                ],
+                                onSelected: (valor) {
+                                  if (valor == 'equipes') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => OperacionalEquipesPage(
+                                          nomeUsuario: widget.nomeUsuario,
+                                          emailUsuario: widget.emailUsuario,
+                                        ),
+                                      ),
+                                    );
+                                  } else if (valor == 'operadores') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            OperacionalOperadoresPage(),
+                                      ),
+                                    );
+                                  }
+                                },
                               ),
+                              /*
                               _BotaoMenuFlutuante(
                                 icon: Icons.assignment,
                                 label: "Projetos",
@@ -380,7 +498,7 @@ class _HomePageState extends State<HomePage> {
                                     builder: (_) => const EngenhariaPage(),
                                   ),
                                 ),
-                              ),
+                              ),*/
                             ],
                           ),
                         ),
@@ -388,7 +506,32 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
-
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 90,
+                  right: 20,
+                  child: FloatingActionButton.small(
+                    heroTag: "btn_sincronizar_mapa",
+                    backgroundColor: const Color(0xFF121212).withOpacity(0.9),
+                    foregroundColor: corPrincipal,
+                    shape: CircleBorder(
+                      side: BorderSide(
+                        color: corPrincipal.withOpacity(0.4),
+                        width: 1,
+                      ),
+                    ),
+                    onPressed: _sincronizando ? null : _buscarClientesDoBanco,
+                    child: _sincronizando
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              color: corPrincipal,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.sync, size: 20),
+                  ),
+                ),
                 // CARDS DE MONITORAMENTO INTEGRADOS
                 Positioned(
                   bottom: 20,
@@ -524,9 +667,96 @@ class _HomePageState extends State<HomePage> {
             ),
     );
   }
+
+  // Método para os botões que NÃO possuem submenu (Início, etc.)
+  Widget _botaoSimplesMenu({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(25),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          // Destaca o fundo caso a aba esteja selecionada
+          color: isSelected
+              ? corPrincipal.withOpacity(0.15)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? corPrincipal : Colors.white70,
+              size: 26,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? corPrincipal : Colors.white60,
+                fontSize: 15,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _botaoDropdownMenu({
+    required IconData icon,
+    required String label,
+    required List<PopupMenuEntry<String>> itens,
+    required PopupMenuItemSelected<String> onSelected,
+  }) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        popupMenuTheme: PopupMenuThemeData(
+          color: const Color(0xFF121212),
+          textStyle: const TextStyle(color: Colors.white, fontSize: 14),
+          // ALTERAÇÃO AQUI: Usamos shape em vez de borderRadius direto
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+        ),
+      ),
+      child: PopupMenuButton<String>(
+        onSelected: onSelected,
+        offset: const Offset(0, 50),
+        itemBuilder: (BuildContext context) => itens,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: Colors.white60, size: 28),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(color: Colors.white60, fontSize: 15),
+              ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.arrow_drop_down,
+                color: Colors.white60,
+                size: 18,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _BotaoMenuFlutuante extends StatelessWidget {
+/*class _BotaoMenuFlutuante extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -570,7 +800,7 @@ class _BotaoMenuFlutuante extends StatelessWidget {
       ),
     );
   }
-}
+}*/
 
 class NeonMarker extends StatelessWidget {
   const NeonMarker({super.key});

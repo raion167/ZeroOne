@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:zeroone/pages/contas_relatorios_page.dart';
-import 'package:zeroone/pages/menu_lateral.dart';
 import 'contas_visao_geral.dart';
 import 'contas_listagem.dart';
 
@@ -11,56 +10,102 @@ class ContasPagarPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Detecta se a tela atual é Desktop ou um Tablet largo
+    final bool isDesktop = MediaQuery.of(context).size.width > 800;
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text("Contas a Pagar"),
+        title: const Text(
+          "Contas a Pagar",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
         backgroundColor: Colors.black,
         foregroundColor: corPrincipal,
         elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: GridView.count(
-          crossAxisCount: 2,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          children: [
-            FinanceiroCardAnimado(
-              icon: Icons.dashboard,
-              label: "Visão Geral",
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ContasVisaoGeralPage(),
-                  ),
-                );
-              },
-            ),
-            FinanceiroCardAnimado(
-              icon: Icons.list_alt,
-              label: "Listagem de Contas",
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ContasListagemPage()),
-                );
-              },
-            ),
-            FinanceiroCardAnimado(
-              icon: Icons.bar_chart,
-              label: "Relatórios e Análises",
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ContasRelatoriosPage(),
-                  ),
-                );
-              },
-            ),
-          ],
+      body: Center(
+        child: Container(
+          // Define uma largura máxima confortável para o conteúdo não esticar infinitamente no Desktop
+          constraints: const BoxConstraints(maxWidth: 1200),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Cabeçalho Interno Estilizado
+              const Text(
+                "Gerenciamento de Saídas",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                "Selecione um dos módulos operacionais abaixo para gerenciar seus lançamentos financeiros.",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.5),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 40),
+
+              // GRID DE CARD RESPONSIVO
+              Expanded(
+                child: GridView.count(
+                  // No Desktop deixa as 3 opções lado a lado. No Mobile, divide em 2 colunas.
+                  crossAxisCount: isDesktop ? 3 : 2,
+                  mainAxisSpacing: 20,
+                  crossAxisSpacing: 20,
+                  // Controla a proporção do card: no desktop ele vira um retângulo deitado macio (1.5)
+                  childAspectRatio: isDesktop ? 1.5 : 1.0,
+                  physics: const BouncingScrollPhysics(),
+                  children: [
+                    FinanceiroCardAnimado(
+                      icon: Icons.dashboard_customize_outlined,
+                      label: "Visão Geral",
+                      descricao:
+                          "Painel com gráficos de fluxo de caixa e resumo de vencimentos.",
+                      isDesktop: isDesktop,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ContasVisaoGeralPage(),
+                        ),
+                      ),
+                    ),
+                    FinanceiroCardAnimado(
+                      icon: Icons.format_list_bulleted_rounded,
+                      label: "Listagem de Contas",
+                      descricao:
+                          "Pesquise faturas, aplique filtros avançados e dê baixa em pagamentos.",
+                      isDesktop: isDesktop,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ContasListagemPage(),
+                        ),
+                      ),
+                    ),
+                    FinanceiroCardAnimado(
+                      icon: Icons.analytics_outlined,
+                      label: "Relatórios e Análises",
+                      descricao:
+                          "Balanço consolidado de despesas e exportação de dados.",
+                      isDesktop: isDesktop,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ContasRelatoriosPage(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -70,12 +115,16 @@ class ContasPagarPage extends StatelessWidget {
 class FinanceiroCardAnimado extends StatefulWidget {
   final IconData icon;
   final String label;
+  final String descricao;
+  final bool isDesktop;
   final VoidCallback onTap;
 
   const FinanceiroCardAnimado({
     super.key,
     required this.icon,
     required this.label,
+    required this.descricao,
+    required this.isDesktop,
     required this.onTap,
   });
 
@@ -87,19 +136,18 @@ class _FinanceiroCardAnimadoState extends State<FinanceiroCardAnimado>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scale;
+  bool _isHovered = false; // Controla se o mouse está em cima do card (Desktop)
 
   @override
   void initState() {
     super.initState();
-
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 140),
-      lowerBound: 0.94,
+      duration: const Duration(milliseconds: 120),
+      lowerBound: 0.95,
       upperBound: 1.0,
       value: 1.0,
     );
-
     _scale = _controller;
   }
 
@@ -111,49 +159,110 @@ class _FinanceiroCardAnimadoState extends State<FinanceiroCardAnimado>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _controller.reverse(),
-      onTapUp: (_) {
-        _controller.forward();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.forward(),
-      child: ScaleTransition(
-        scale: _scale,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0B0B0B),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: corPrincipal.withOpacity(0.5),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: corPrincipal.withOpacity(0.35),
-                blurRadius: 18,
-                spreadRadius: 1,
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTapDown: (_) => _controller.reverse(),
+        onTapUp: (_) {
+          _controller.forward();
+          widget.onTap();
+        },
+        onTapCancel: () => _controller.forward(),
+        child: ScaleTransition(
+          scale: _scale,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              // Muda o fundo sutilmente quando passa o mouse no desktop
+              color: _isHovered
+                  ? const Color(0xFF141414)
+                  : const Color(0xFF0B0B0B),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: _isHovered
+                    ? corPrincipal
+                    : corPrincipal.withOpacity(0.35),
+                width: _isHovered ? 1.5 : 1.0,
               ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(widget.icon, color: corPrincipal, size: 48),
-                const SizedBox(height: 12),
-                Text(
-                  widget.label,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: corPrincipal,
-                  ),
+              boxShadow: [
+                BoxShadow(
+                  color: corPrincipal.withOpacity(_isHovered ? 0.4 : 0.2),
+                  blurRadius: _isHovered ? 25 : 15,
+                  spreadRadius: 1,
                 ),
               ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: widget.isDesktop
+                  ? Row(
+                      // LAYOUT DESKTOP: Ícone na esquerda, textos empilhados na direita
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: corPrincipal.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(
+                            widget.icon,
+                            color: corPrincipal,
+                            size: 40,
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.label,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                widget.descricao,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.45),
+                                  height: 1.3,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          color: corPrincipal,
+                          size: 14,
+                        ),
+                      ],
+                    )
+                  : Column(
+                      // LAYOUT MOBILE: Mantém a estrutura clássica centralizada
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(widget.icon, color: corPrincipal, size: 44),
+                        const SizedBox(height: 14),
+                        Text(
+                          widget.label,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: corPrincipal,
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ),
         ),

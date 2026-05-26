@@ -12,6 +12,7 @@ import 'package:zeroone/pages/estoque_adicionar_page.dart';
 import 'package:zeroone/pages/estoque_lista_page.dart';
 import 'package:zeroone/pages/estoque_movimentacoes_page.dart';
 import 'package:zeroone/pages/financeiro_page.dart';
+import 'package:zeroone/pages/integracoes_page.dart';
 import 'package:zeroone/pages/operacional_equipes_page.dart';
 import 'package:zeroone/pages/operacional_operadores_page.dart';
 import 'package:zeroone/pages/operacional_page.dart';
@@ -484,6 +485,17 @@ class _HomePageState extends State<HomePage> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => const ProjetosPage(),
+                                  ),
+                                ),
+                              ),
+                              _botaoSimplesMenu(
+                                icon: Icons.key,
+                                label: "Integrações",
+                                isSelected: false,
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const IntegracoesPage(),
                                   ),
                                 ),
                               ),

@@ -18,6 +18,7 @@ class BaseScaffold extends StatefulWidget {
   final Widget corpo;
   final String nomeUsuario;
   final String emailUsuario;
+  final bool mostrarBotaoVoltar; // 🔥 NOVO: Parâmetro para controlar o botão
 
   const BaseScaffold({
     super.key,
@@ -25,6 +26,7 @@ class BaseScaffold extends StatefulWidget {
     required this.corpo,
     required this.nomeUsuario,
     required this.emailUsuario,
+    this.mostrarBotaoVoltar = false, // Padrão é falso para manter o menu normal
   });
 
   @override
@@ -41,106 +43,109 @@ class _BaseScaffoldState extends State<BaseScaffold> {
         title: Text(widget.titulo, style: const TextStyle(color: corPrincipal)),
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: corPrincipal),
+
+        // 🔥 SUBSTITUIÇÃO DINÂMICA DO ÍCONE
+        leading: widget.mostrarBotaoVoltar
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                onPressed: () {
+                  Navigator.pop(context); // Volta para a página anterior
+                },
+              )
+            : null, // Se for falso, o Flutter coloca o ícone do menu sozinho
       ),
 
-      drawer: AnimatedDrawer(
-        child: Drawer(
-          backgroundColor: Colors.black,
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              DrawerHeader(
-                decoration: const BoxDecoration(color: Colors.black),
-                child: Image.asset(
-                  'assets/images/icone.png',
-                  height: 50,
-                  fit: BoxFit.contain,
+      // Só ativa o drawer se não estiver exibindo o botão de voltar
+      drawer: widget.mostrarBotaoVoltar
+          ? null
+          : AnimatedDrawer(
+              child: Drawer(
+                backgroundColor: Colors.black,
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    DrawerHeader(
+                      decoration: const BoxDecoration(color: Colors.black),
+                      child: Image.asset(
+                        'assets/images/icone.png',
+                        height: 50,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    _menuItem(Icons.home, "Início", () {
+                      _navigate(
+                        () => HomePage(
+                          nomeUsuario: widget.nomeUsuario,
+                          emailUsuario: widget.emailUsuario,
+                        ),
+                      );
+                    }),
+                    _menuItem(Icons.home, "Clientes", () {
+                      _navigate(() => ClientesPage());
+                    }),
+                    _menuItem(Icons.wallet, "Financeiro", () {
+                      _navigate(
+                        () => FinanceiroPage(
+                          nomeUsuario: widget.nomeUsuario,
+                          emailUsuario: widget.emailUsuario,
+                        ),
+                      );
+                    }),
+                    _menuItem(Icons.inventory_2, "Controle de Estoque", () {
+                      _navigate(
+                        () => ControleEstoquePage(
+                          nomeUsuario: widget.nomeUsuario,
+                          emailUsuario: widget.emailUsuario,
+                        ),
+                      );
+                    }),
+                    _menuItem(Icons.bolt, "Monitoramento", () {
+                      _navigate(
+                        () => MonitoramentoClientesPage(
+                          nomeUsuario: widget.nomeUsuario,
+                          emailUsuario: widget.emailUsuario,
+                        ),
+                      );
+                    }),
+                    _menuItem(Icons.build, "Operacional", () {
+                      _navigate(
+                        () => OperacionalPage(
+                          nomeUsuario: widget.nomeUsuario,
+                          emailUsuario: widget.emailUsuario,
+                        ),
+                      );
+                    }),
+                    _menuItem(Icons.assignment, "Projetos", () {
+                      _navigate(() => ProjetosPage());
+                    }),
+                    _menuItem(Icons.engineering, "Engenharia", () {
+                      _navigate(() => EngenhariaPage());
+                    }),
+                    _menuItem(Icons.settings, "Configurações", () {
+                      _navigate(() => ConfiguracoesPage());
+                    }),
+                    const Divider(color: corPrincipal),
+                    _menuItem(Icons.logout, "Sair", () {
+                      Navigator.pop(context);
+                      Navigator.pushReplacementNamed(context, '/');
+                    }),
+                  ],
                 ),
               ),
-              _menuItem(Icons.home, "Início", () {
-                _navigate(
-                  () => HomePage(
-                    nomeUsuario: widget.nomeUsuario,
-                    emailUsuario: widget.emailUsuario,
-                  ),
-                );
-              }),
-              _menuItem(Icons.home, "Clientes", () {
-                _navigate(() => ClientesPage());
-              }),
-
-              _menuItem(Icons.wallet, "Financeiro", () {
-                _navigate(
-                  () => FinanceiroPage(
-                    nomeUsuario: widget.nomeUsuario,
-                    emailUsuario: widget.emailUsuario,
-                  ),
-                );
-              }),
-
-              /*_menuItem(Icons.money, "Vendas", () {
-                _navigate(() => NovaVendaPage());
-              }),*/
-              _menuItem(Icons.inventory_2, "Controle de Estoque", () {
-                _navigate(
-                  () => ControleEstoquePage(
-                    nomeUsuario: widget.nomeUsuario,
-                    emailUsuario: widget.emailUsuario,
-                  ),
-                );
-              }),
-
-              _menuItem(Icons.bolt, "Monitoramento", () {
-                _navigate(
-                  () => MonitoramentoClientesPage(
-                    nomeUsuario: widget.nomeUsuario,
-                    emailUsuario: widget.emailUsuario,
-                  ),
-                );
-              }),
-
-              _menuItem(Icons.build, "Operacional", () {
-                _navigate(
-                  () => OperacionalPage(
-                    nomeUsuario: widget.nomeUsuario,
-                    emailUsuario: widget.emailUsuario,
-                  ),
-                );
-              }),
-
-              _menuItem(Icons.assignment, "Projetos", () {
-                _navigate(() => ProjetosPage());
-              }),
-
-              _menuItem(Icons.engineering, "Engenharia", () {
-                _navigate(() => EngenhariaPage());
-              }),
-
-              _menuItem(Icons.settings, "Configurações", () {
-                _navigate(() => ConfiguracoesPage());
-              }),
-
-              const Divider(color: corPrincipal),
-
-              _menuItem(Icons.logout, "Sair", () {
-                Navigator.pop(context);
-                Navigator.pushReplacementNamed(context, '/');
-              }),
-            ],
-          ),
-        ),
-      ),
+            ),
 
       onDrawerChanged: (isOpen) {
-        setState(() => drawerAberto = isOpen);
+        if (!widget.mostrarBotaoVoltar) {
+          setState(() => drawerAberto = isOpen);
+        }
       },
 
       body: Stack(
         children: [
           widget.corpo,
 
-          // 🔥 BLUR AO ABRIR O DRAWER
-          if (drawerAberto)
+          // BLUR AO ABRIR O DRAWER (apenas se o drawer estiver ativo)
+          if (drawerAberto && !widget.mostrarBotaoVoltar)
             Positioned.fill(
               child: GestureDetector(
                 onTap: () => Navigator.pop(context),
@@ -178,7 +183,7 @@ class _BaseScaffoldState extends State<BaseScaffold> {
   }
 }
 
-/// 🔥 Drawer animado (slide + fade)
+/// Drawer animado (slide + fade)
 class AnimatedDrawer extends StatelessWidget {
   final Widget child;
 

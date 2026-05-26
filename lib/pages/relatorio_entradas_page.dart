@@ -1,10 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:syncfusion_flutter_gauges/gauges.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'menu_lateral.dart';
+import 'menu_lateral.dart'; // Onde está o seu BaseScaffold atualizado
 
 const Color corPrincipal = Color(0xffbbfb04);
 
@@ -34,34 +32,98 @@ class _RelatorioEntradasPageState extends State<RelatorioEntradasPage> {
 
   DateTimeRange? filtroData;
   String? filtroUsuario;
-  List<String> usuarios = [];
+  List<Map<String, String>> usuarios = [];
 
   bool modoComparativo = false;
+
+  // 🔥 Instância do Supabase
+  final SupabaseClient supabase = Supabase.instance.client;
 
   Future<void> carregarRelatorio() async {
     setState(() => carregando = true);
 
-    String query = "";
-    if (filtroUsuario != null) query += "&usuario=$filtroUsuario";
-    if (filtroData != null) {
-      query +=
-          "&data_inicio=${filtroData!.start.toIso8601String()}&data_fim=${filtroData!.end.toIso8601String()}";
-    }
+    try {
+      // 1. Busca as movimentações filtrando por entrada
+      var query = supabase
+          .from('movimentacoes_estoque')
+          .select('''
+        id,
+        quantidade,
+        user_id,
+        tipo,
+        data_movimentacao,
+        estoque (
+          nome
+        )
+      ''')
+          .eq('tipo', 'entrada');
 
-    final response = await http.get(
-      Uri.parse("http://localhost:8080/app/relatorio_entradas.php?$query"),
-    );
+      if (filtroUsuario != null) {
+        query = query.eq('user_id', filtroUsuario!);
+      }
 
-    final data = jsonDecode(response.body);
+      if (filtroData != null) {
+        query = query
+            .gte('data_movimentacao', filtroData!.start.toIso8601String())
+            .lte('data_movimentacao', filtroData!.end.toIso8601String());
+      }
 
-    if (data["success"] == true) {
+      final List<dynamic> dadosDoBanco = await query.order(
+        'data_movimentacao',
+        ascending: false,
+      );
+
+      // 2. Busca TODOS os usuários/perfis do sistema para cruzar os nomes no Dropdown e na listagem
+      // 🔥 Ajuste 'perfis' para o nome da sua tabela de usuários (ex: 'profiles', 'usuarios')
+      // 🔥 Ajuste 'nome' para a coluna correspondente (ex: 'nome_usuario', 'full_name')
+      final List<dynamic> dadosUsuarios = await supabase
+          .from('usuarios')
+          .select('id, nome');
+
+      // Cria um mapa rápido para buscar o nome pelo ID: { "uuid-longo": "João Silva" }
+      final Map<String, String> mapaNomesUsuarios = {
+        for (var u in dadosUsuarios) u['id'].toString(): u['nome'].toString(),
+      };
+
+      // 3. Formata os dados para o gráfico
+      final dadosFormatados = dadosDoBanco.map((item) {
+        final userId = item['user_id']?.toString() ?? '';
+        return {
+          "produto": item['estoque'] != null
+              ? item['estoque']['nome']
+              : 'Produto K',
+          "quantidade": item['quantidade'],
+          // Pega o nome real no mapa. Se não achar, mostra os 8 primeiros caracteres do ID
+          "usuario":
+              mapaNomesUsuarios[userId] ??
+              (userId.length > 8 ? userId.substring(0, 8) : 'N/D'),
+          "data_movimentacao": item['data_movimentacao'],
+        };
+      }).toList();
+
+      // 4. Gera a lista para o Dropdown contendo ID e Nome de forma distinta
+      final List<Map<String, String>> listaDropdownUsuarios = [];
+      final setIdsExistentes = dadosDoBanco
+          .map((item) => item['user_id']?.toString())
+          .toSet();
+
+      for (var id in setIdsExistentes) {
+        if (id != null) {
+          listaDropdownUsuarios.add({
+            "id": id,
+            "nome": mapaNomesUsuarios[id] ?? id.substring(0, 8),
+          });
+        }
+      }
+
       setState(() {
-        relatorio = List<dynamic>.from(data["dados"] ?? []);
-        usuarios = List<String>.from(data["usuarios"] ?? []);
+        relatorio = dadosFormatados;
+        usuarios = listaDropdownUsuarios; // Agora guarda objetos com ID e Nome
         carregando = false;
       });
-    } else {
-      carregando = false;
+    } catch (e) {
+      debugPrint("Erro ao carregar dados do Supabase: $e");
+      setState(() => carregando = false);
     }
   }
 
@@ -77,6 +139,19 @@ class _RelatorioEntradasPageState extends State<RelatorioEntradasPage> {
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
       initialDateRange: filtroData,
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: corPrincipal,
+              onPrimary: Colors.black,
+              surface: Colors.black,
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null) {
@@ -150,7 +225,7 @@ class _RelatorioEntradasPageState extends State<RelatorioEntradasPage> {
           axes: [
             RadialAxis(
               minimum: 0,
-              maximum: total * 1.5,
+              maximum: total == 0 ? 100 : total * 1.5,
               axisLineStyle: const AxisLineStyle(color: Colors.white24),
               pointers: [
                 RangePointer(value: total.toDouble(), color: corPrincipal),
@@ -241,146 +316,164 @@ class _RelatorioEntradasPageState extends State<RelatorioEntradasPage> {
   // ===================== UI =====================
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-
-      // ✅ APPBAR COM BOTÃO DE VOLTAR (PADRÃO RELATÓRIO DE PERDAS)
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: corPrincipal),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Relatório de Entradas",
-          style: TextStyle(color: corPrincipal, fontWeight: FontWeight.bold),
-        ),
-      ),
-
-      // ✅ BASESCAFFOLD APENAS COMO BODY
-      body: BaseScaffold(
-        titulo: "",
-        nomeUsuario: widget.nomeUsuario,
-        emailUsuario: widget.emailUsuario,
-        corpo: carregando
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                children: [
-                  /// FILTROS
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        _dropdown(tipoGrafico, [
-                          "Linhas",
-                          "Colunas",
-                          "Pizza",
-                          "KPI",
-                        ], (v) => setState(() => tipoGrafico = v)),
-                        _dropdown(
-                          campoX,
-                          camposDisponiveis,
-                          (v) => setState(() => campoX = v),
-                        ),
-                        _dropdown(
-                          campoY,
-                          camposDisponiveis,
-                          (v) => setState(() => campoY = v),
-                        ),
-                        _dropdown(filtroUsuario, usuarios, (v) {
-                          setState(() => filtroUsuario = v);
-                          carregarRelatorio();
-                        }, hint: "Usuário"),
-
-                        /// BOTÃO DATA
-                        ElevatedButton.icon(
-                          onPressed: selecionarPeriodo,
-                          icon: const Icon(
-                            Icons.date_range,
-                            color: Colors.black,
-                          ),
-                          label: const Text(
-                            "Data",
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: corPrincipal,
-                            elevation: 8,
-                            shadowColor: corPrincipal.withOpacity(0.5),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
-                        ),
-
-                        /// BOTÃO COMPARAR
-                        ElevatedButton.icon(
-                          onPressed: () => setState(
-                            () => modoComparativo = !modoComparativo,
-                          ),
-                          icon: const Icon(Icons.compare, color: Colors.black),
-                          label: Text(
-                            modoComparativo ? "Visão Geral" : "Comparar",
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: corPrincipal,
-                            elevation: 8,
-                            shadowColor: corPrincipal.withOpacity(0.5),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  /// CARD DO GRÁFICO (EXATAMENTE IGUAL AO RELATÓRIO DE PERDAS)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: corPrincipal.withOpacity(0.4),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: corPrincipal.withOpacity(0.15),
-                              blurRadius: 18,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(16),
-                        child: modoComparativo
-                            ? _graficoComparativo()
-                            : _graficoPrincipal(),
+    return BaseScaffold(
+      titulo: "Relatório de Entradas",
+      nomeUsuario: widget.nomeUsuario,
+      emailUsuario: widget.emailUsuario,
+      mostrarBotaoVoltar:
+          true, // Mantém a seta de voltar e remove o menu lateral
+      corpo: carregando
+          ? const Center(child: CircularProgressIndicator(color: corPrincipal))
+          : Column(
+              children: [
+                /// FILTROS
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _dropdown(tipoGrafico, [
+                        "Linhas",
+                        "Colunas",
+                        "Pizza",
+                        "KPI",
+                      ], (v) => setState(() => tipoGrafico = v)),
+                      _dropdown(
+                        campoX,
+                        camposDisponiveis,
+                        (v) => setState(() => campoX = v),
                       ),
+                      _dropdown(
+                        campoY,
+                        camposDisponiveis,
+                        (v) => setState(() => campoY = v),
+                      ),
+                      _dropdownUsuario(filtroUsuario, usuarios, (v) {
+                        setState(() => filtroUsuario = v);
+                        carregarRelatorio();
+                      }, hint: "Usuário"),
+
+                      /// BOTÃO DATA
+                      ElevatedButton.icon(
+                        onPressed: selecionarPeriodo,
+                        icon: const Icon(Icons.date_range, color: Colors.black),
+                        label: const Text(
+                          "Data",
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: corPrincipal,
+                          elevation: 8,
+                          shadowColor: corPrincipal.withOpacity(0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+
+                      /// BOTÃO COMPARAR
+                      ElevatedButton.icon(
+                        onPressed: () =>
+                            setState(() => modoComparativo = !modoComparativo),
+                        icon: const Icon(Icons.compare, color: Colors.black),
+                        label: Text(
+                          modoComparativo ? "Visão Geral" : "Comparar",
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: corPrincipal,
+                          elevation: 8,
+                          shadowColor: corPrincipal.withOpacity(0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                /// CARD DO GRÁFICO
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: corPrincipal.withOpacity(0.4),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: corPrincipal.withOpacity(0.15),
+                            blurRadius: 18,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: modoComparativo
+                          ? _graficoComparativo()
+                          : _graficoPrincipal(),
                     ),
                   ),
-                ],
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _dropdownUsuario(
+    String? value,
+    List<Map<String, String>> itens,
+    Function(String) onChanged, {
+    String? hint,
+  }) {
+    return SizedBox(
+      width: 180,
+      child: DropdownButtonFormField<String>(
+        value: value,
+        hint: hint != null
+            ? Text(hint, style: const TextStyle(color: corPrincipal))
+            : null,
+        dropdownColor: Colors.black,
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.black,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: corPrincipal.withOpacity(0.5)),
+          ),
+        ),
+        style: const TextStyle(color: corPrincipal),
+        items: itens
+            .map(
+              (e) => DropdownMenuItem<String>(
+                value:
+                    e["id"], // O valor interno continua sendo o UUID para a query funcionar
+                child: Text(
+                  e["nome"]!,
+                ), // O texto exibido na tela será o Nome do usuário
               ),
+            )
+            .toList(),
+        onChanged: (v) => onChanged(v!),
       ),
     );
   }

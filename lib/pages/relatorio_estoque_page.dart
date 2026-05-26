@@ -55,13 +55,11 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
         usuario:user_id(nome)
       ''');
 
-      /// FILTRO USUÁRIO (separando id do "nome|id")
       if (filtroUsuario != null) {
         final id = filtroUsuario!.split("|").last;
         query = query.eq('user_id', id);
       }
 
-      /// FILTRO DATA
       if (filtroData != null) {
         query = query
             .gte('data_movimentacao', filtroData!.start.toIso8601String())
@@ -87,10 +85,8 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
         };
       }).toList();
 
-      /// GARANTE QUE Y É NUMÉRICO
       campoY = "quantidade";
 
-      /// CARREGAR USUÁRIOS
       final usuariosResp = await supabase.from('usuarios').select('id, nome');
 
       usuarios = usuariosResp
@@ -133,8 +129,15 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
       case "Linhas":
         return SfCartesianChart(
           backgroundColor: Colors.black,
+          // 🔥 CORREÇÃO: Define que o eixo X aceita textos/categorias
+          primaryXAxis: const CategoryAxis(
+            labelStyle: TextStyle(color: Colors.white),
+          ),
+          primaryYAxis: const NumericAxis(
+            labelStyle: TextStyle(color: Colors.white),
+          ),
           series: [
-            LineSeries(
+            LineSeries<Map<String, dynamic>, String>(
               dataSource: relatorio,
               xValueMapper: (d, _) => d[campoX]?.toString() ?? "",
               yValueMapper: (d, _) => parseValor(d[campoY]),
@@ -146,8 +149,15 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
       case "Colunas":
         return SfCartesianChart(
           backgroundColor: Colors.black,
+          // 🔥 CORREÇÃO: Define que o eixo X aceita textos/categorias
+          primaryXAxis: const CategoryAxis(
+            labelStyle: TextStyle(color: Colors.white),
+          ),
+          primaryYAxis: const NumericAxis(
+            labelStyle: TextStyle(color: Colors.white),
+          ),
           series: [
-            ColumnSeries(
+            ColumnSeries<Map<String, dynamic>, String>(
               dataSource: relatorio,
               xValueMapper: (d, _) => d[campoX]?.toString() ?? "",
               yValueMapper: (d, _) => parseValor(d[campoY]),
@@ -159,11 +169,16 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
       case "Pizza":
         return SfCircularChart(
           backgroundColor: Colors.black,
+          legend: const Legend(
+            isVisible: true,
+            textStyle: TextStyle(color: Colors.white),
+          ),
           series: [
-            PieSeries(
+            PieSeries<Map<String, dynamic>, String>(
               dataSource: relatorio,
               xValueMapper: (d, _) => d[campoX]?.toString() ?? "",
               yValueMapper: (d, _) => parseValor(d[campoY]),
+              dataLabelSettings: const DataLabelSettings(isVisible: true),
             ),
           ],
         );
@@ -205,22 +220,18 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text("Relatório Estoque"),
-        backgroundColor: Colors.black,
-        foregroundColor: corPrincipal,
-      ),
-      body: BaseScaffold(
-        titulo: "",
-        nomeUsuario: widget.nomeUsuario,
-        emailUsuario: widget.emailUsuario,
-        corpo: carregando
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
+    // 🔥 CORREÇÃO: Removido o Scaffold/AppBar redundantes de cima
+    return BaseScaffold(
+      titulo: "Relatório de Estoque",
+      nomeUsuario: widget.nomeUsuario,
+      emailUsuario: widget.emailUsuario,
+      mostrarBotaoVoltar: true,
+      corpo: carregando
+          ? const Center(child: CircularProgressIndicator(color: corPrincipal))
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
                 children: [
-                  /// 🔥 EVITA OVERFLOW
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -245,21 +256,47 @@ class _RelatorioEstoquePageState extends State<RelatorioEstoquePage> {
                           filtroUsuario = v;
                           carregarRelatorio();
                         }, hint: "Usuário"),
-                        ElevatedButton(
-                          onPressed: selecionarPeriodo,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: corPrincipal,
-                            foregroundColor: Colors.black,
+                        Padding(
+                          padding: const EdgeInsets.all(6.0),
+                          child: ElevatedButton.icon(
+                            onPressed: selecionarPeriodo,
+                            icon: const Icon(Icons.date_range),
+                            label: Text(
+                              filtroData == null
+                                  ? "Filtrar Data"
+                                  : "Data Ativa",
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: corPrincipal,
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 18,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
                           ),
-                          child: const Text("Data"),
                         ),
                       ],
                     ),
                   ),
-                  Expanded(child: _buildGrafico()),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D0D0D),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: _buildGrafico(),
+                    ),
+                  ),
                 ],
               ),
-      ),
+            ),
     );
   }
 }
@@ -280,17 +317,27 @@ Widget _dropdown(
         dropdownColor: Colors.black,
         iconEnabledColor: corPrincipal,
         style: const TextStyle(color: corPrincipal),
-        hint: hint != null ? Text(hint) : null,
+        hint: hint != null
+            ? Text(hint, style: const TextStyle(color: Colors.white54))
+            : null,
         decoration: InputDecoration(
-          enabledBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: corPrincipal),
+          enabledBorder: const OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.white24),
           ),
-          focusedBorder: OutlineInputBorder(
+          focusedBorder: const OutlineInputBorder(
             borderSide: BorderSide(color: corPrincipal, width: 2),
           ),
         ),
         items: items
-            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+            .map(
+              (e) => DropdownMenuItem(
+                value: e,
+                child: Text(
+                  e.contains('|') ? e.split('|').first : e,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            )
             .toList(),
         onChanged: onChanged,
       ),

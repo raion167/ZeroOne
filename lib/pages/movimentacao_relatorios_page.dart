@@ -27,6 +27,8 @@ class MovimentacaoRelatoriosPage extends StatelessWidget {
       titulo: "Relatórios de Movimentação",
       nomeUsuario: nomeUsuario,
       emailUsuario: emailUsuario,
+      mostrarBotaoVoltar:
+          true, // 🔥 Adicionado o botão voltar nativo do BaseScaffold
       corpo: Center(
         child: Container(
           // Define a mesma largura máxima confortável para o conteúdo
@@ -79,7 +81,7 @@ class MovimentacaoRelatoriosPage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    FinanceiroCardAnimado(
+                    /*FinanceiroCardAnimado(
                       icon: Icons.warning_amber_rounded,
                       label: "Relatório de Perdas",
                       descricao:
@@ -94,7 +96,7 @@ class MovimentacaoRelatoriosPage extends StatelessWidget {
                           ),
                         ),
                       ),
-                    ),
+                    ),*/
                     FinanceiroCardAnimado(
                       icon: Icons.arrow_upward_rounded,
                       label: "Relatório de Entradas",

@@ -208,9 +208,7 @@ class _HomePageState extends State<HomePage> {
         final double? lon = double.tryParse(lonStr);
 
         if (lat != null && lon != null) {
-          print(
-            "Desenhando marcador para: ${cliente['nome']} em ($lat, $lon)",
-          ); // <-- Para ver no console se passou aqui
+          // <-- Para ver no console se passou aqui
           todosOsMarcadores.add(
             Marker(
               point: LatLng(lat, lon),
@@ -478,10 +476,10 @@ class _HomePageState extends State<HomePage> {
                                   }
                                 },
                               ),
-                              /*
-                              _BotaoMenuFlutuante(
+                              _botaoSimplesMenu(
                                 icon: Icons.assignment,
                                 label: "Projetos",
+                                isSelected: false,
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -489,9 +487,10 @@ class _HomePageState extends State<HomePage> {
                                   ),
                                 ),
                               ),
-                              _BotaoMenuFlutuante(
+                              /*_botaoSimplesMenu(
                                 icon: Icons.engineering,
                                 label: "Engenharia",
+                                isSelected: false,
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
